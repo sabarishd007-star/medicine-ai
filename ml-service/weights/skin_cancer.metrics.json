@@ -1,0 +1,105 @@
+{
+  "disease": "skin_cancer",
+  "model_status": "TRAINED",
+  "model_sha256": "ed110bfd551dd209be8a53c6d22e2e35aaa5dea62fd30dfc9abcf9cfdcf70b93",
+  "framework": "keras",
+  "architecture": "mobilenetv2",
+  "classes": [
+    "Basal Cell Carcinoma (Cancer)",
+    "Melanoma (Cancer)",
+    "Nevus (Non-Cancerous)"
+  ],
+  "evaluated_at": "2026-08-08T17:32:42.809823+00:00",
+  "eval_seconds": 743.4,
+  "dataset": {
+    "name": "HAM10000 / ISIC2018 Task3 official test set",
+    "split": "test",
+    "url": "https://doi.org/10.7910/DVN/DBW86T",
+    "license_note": "HAM10000 (CC BY-NC 4.0), ISIC 2018 Task 3 test split.",
+    "samples_evaluated": 300,
+    "sampling": "uniform random rows, seed=42",
+    "class_support": {
+      "Basal Cell Carcinoma (Cancer)": 14,
+      "Melanoma (Cancer)": 44,
+      "Nevus (Non-Cancerous)": 242
+    },
+    "native_labels": [
+      "akiec",
+      "bcc",
+      "bkl",
+      "df",
+      "mel",
+      "nv",
+      "vasc"
+    ],
+    "label_mapping_exact": false,
+    "mapping_note": "HAM10000 official test ground truth. The model covers only 3 of the 7 classes, so akiec/bkl/df/vasc rows are EXCLUDED from scoring rather than mapped. Real-world accuracy would be lower, because in deployment those lesion types still get forced into one of the 3 available classes."
+  },
+  "accuracy": 0.8333,
+  "macro_precision": 0.6556,
+  "macro_recall": 0.5518,
+  "macro_f1": 0.5893,
+  "weighted_f1": 0.8199,
+  "majority_class_baseline": 0.8067,
+  "beats_majority_baseline": true,
+  "confidence_gate": {
+    "threshold": 0.75,
+    "coverage": 0.9433,
+    "accuracy_on_gated": 0.8481,
+    "mean_confidence": 0.9674
+  },
+  "per_class": {
+    "Basal Cell Carcinoma (Cancer)": {
+      "precision": 0.5,
+      "recall": 0.2857,
+      "f1": 0.3636,
+      "support": 14
+    },
+    "Melanoma (Cancer)": {
+      "precision": 0.5938,
+      "recall": 0.4318,
+      "f1": 0.5,
+      "support": 44
+    },
+    "Nevus (Non-Cancerous)": {
+      "precision": 0.8731,
+      "recall": 0.938,
+      "f1": 0.9044,
+      "support": 242
+    }
+  },
+  "confusion_matrix": [
+    [
+      4,
+      1,
+      9
+    ],
+    [
+      1,
+      19,
+      24
+    ],
+    [
+      3,
+      12,
+      227
+    ]
+  ],
+  "confusion_matrix_rows": "true label",
+  "confusion_matrix_cols": "predicted label",
+  "caveats": [
+    "Measured on a public mirror of the test data, not a private hold-out set. Some overlap with the checkpoint's original training data cannot be excluded, so this figure may be optimistic.",
+    "Dataset labels were collapsed to fit the model's coarser class list; part of the error is mapping loss, not model error.",
+    "SAFETY: this module missed 33 of 58 diseased cases (56.9% false-negative rate) on the evaluated sample. Overall accuracy hides this because the non-diseased class dominates. Treat a negative result as non-informative, never as reassurance."
+  ],
+  "safety": {
+    "definition": "Positive = ['Basal Cell Carcinoma (Cancer)', 'Melanoma (Cancer)']. A false negative is a diseased case predicted as non-diseased.",
+    "diseased_samples": 58,
+    "missed_diseased_cases": 33,
+    "false_negative_rate": 0.569,
+    "sensitivity_recall": 0.431,
+    "specificity": 0.938,
+    "false_alarms": 15,
+    "warning": "SAFETY: this module missed 33 of 58 diseased cases (56.9% false-negative rate) on the evaluated sample. Overall accuracy hides this because the non-diseased class dominates. Treat a negative result as non-informative, never as reassurance."
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "model_type": "RandomForestClassifier",
+  "trained_on": "UCI Cleveland heart disease (expanded heart.csv), de-duplicated",
+  "source_repo": "nilaymodak/HeartDiseasePrediction",
+  "rows_raw": 1025,
+  "duplicate_rows_removed": 723,
+  "rows_used": 302,
+  "split": "stratified 80/20 on de-duplicated rows",
+  "seed": 42,
+  "held_out": {
+    "accuracy": 0.8197,
+    "precision": 0.8235,
+    "recall": 0.8485,
+    "f1": 0.8358,
+    "roc_auc": 0.882,
+    "confusion_matrix": [
+      [
+        22,
+        6
+      ],
+      [
+        5,
+        28
+      ]
+    ],
+    "test_size": 61
+  },
+  "cross_val_roc_auc_mean": 0.9109,
+  "cross_val_roc_auc_std": 0.0477,
+  "leaky_duplicate_split_accuracy": 0.9902,
+  "honesty_note": "leaky_duplicate_split_accuracy is what you get by splitting the raw CSV with its duplicated rows; it is inflated by train/test leakage and must not be quoted. Use held_out metrics.",
+  "scope_note": "Tabular clinical-variable risk estimate. Not part of the image screening pipeline and not a substitute for ECG, angiography or clinical assessment."
+}

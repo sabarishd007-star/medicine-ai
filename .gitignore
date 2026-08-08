@@ -5,11 +5,26 @@ frontend/dist/
 # Python Virtual Environment & Caches
 ml-service/venv/
 .venv/
-ml-service/__pycache__/
+__pycache__/
+*.pyc
+ml-service/.pytest_cache/
 ml-service/*.pth
 ml-service/*.pt
+ml-service/weights/*.pth
+ml-service/weights/*.h5
+ml-service/weights/*.joblib
+ml-service/weights/*.pkl
+ml-service/weights/*.csv
 ml-service/reports/*.pdf
 ml-service/temp_heatmaps/*
+
+# Measured accuracy results ARE tracked: they are the evidence behind every
+# performance claim, and they are only a few KB each.
+!ml-service/weights/*.metrics.json
+
+# Downloaded upstream project archives (source repos, hundreds of MB).
+# Fetch model weights with `python ml-service/fetch_weights.py` instead.
+*.zip
 
 # Java & Gradle builds
 backend/.gradle/

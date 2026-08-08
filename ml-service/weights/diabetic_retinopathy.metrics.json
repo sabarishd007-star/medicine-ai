@@ -1,0 +1,138 @@
+{
+  "disease": "diabetic_retinopathy",
+  "model_status": "TRAINED",
+  "model_sha256": "6eef57246be90b4ef26d17a6db4f3e3c99c815c96b97074664edd631e0946ed8",
+  "framework": "keras",
+  "architecture": "densenet121",
+  "classes": [
+    "No DR",
+    "Mild Non-Proliferative DR",
+    "Moderate Non-Proliferative DR",
+    "Severe Non-Proliferative DR",
+    "Proliferative DR"
+  ],
+  "evaluated_at": "2026-08-08T17:02:10.307598+00:00",
+  "eval_seconds": 1871.4,
+  "dataset": {
+    "name": "sngsfydy/aptos_test",
+    "split": "train",
+    "url": "https://huggingface.co/datasets/sngsfydy/aptos_test",
+    "license_note": "APTOS 2019 Blindness Detection (public Kaggle competition data).",
+    "samples_evaluated": 300,
+    "sampling": "uniform random rows, seed=42",
+    "class_support": {
+      "No DR": 143,
+      "Mild Non-Proliferative DR": 25,
+      "Moderate Non-Proliferative DR": 91,
+      "Severe Non-Proliferative DR": 15,
+      "Proliferative DR": 26
+    },
+    "native_labels": [
+      "No DR",
+      "Mild",
+      "Moderate",
+      "Severe",
+      "Proliferative"
+    ],
+    "label_mapping_exact": true,
+    "mapping_note": "APTOS 2019 grades 0-4 map one-to-one onto the model's five DR levels."
+  },
+  "accuracy": 0.8367,
+  "macro_precision": 0.7149,
+  "macro_recall": 0.5855,
+  "macro_f1": 0.6108,
+  "weighted_f1": 0.8128,
+  "majority_class_baseline": 0.4767,
+  "beats_majority_baseline": true,
+  "confidence_gate": {
+    "threshold": 0.75,
+    "coverage": 0.8633,
+    "accuracy_on_gated": 0.8533,
+    "mean_confidence": 0.9171
+  },
+  "per_class": {
+    "No DR": {
+      "precision": 0.953,
+      "recall": 0.993,
+      "f1": 0.9726,
+      "support": 143
+    },
+    "Mild Non-Proliferative DR": {
+      "precision": 0.7368,
+      "recall": 0.56,
+      "f1": 0.6364,
+      "support": 25
+    },
+    "Moderate Non-Proliferative DR": {
+      "precision": 0.7179,
+      "recall": 0.9231,
+      "f1": 0.8077,
+      "support": 91
+    },
+    "Severe Non-Proliferative DR": {
+      "precision": 0.3333,
+      "recall": 0.0667,
+      "f1": 0.1111,
+      "support": 15
+    },
+    "Proliferative DR": {
+      "precision": 0.8333,
+      "recall": 0.3846,
+      "f1": 0.5263,
+      "support": 26
+    }
+  },
+  "confusion_matrix": [
+    [
+      142,
+      0,
+      1,
+      0,
+      0
+    ],
+    [
+      4,
+      14,
+      7,
+      0,
+      0
+    ],
+    [
+      3,
+      4,
+      84,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      12,
+      1,
+      2
+    ],
+    [
+      0,
+      1,
+      13,
+      2,
+      10
+    ]
+  ],
+  "confusion_matrix_rows": "true label",
+  "confusion_matrix_cols": "predicted label",
+  "caveats": [
+    "Measured on a public mirror of the test data, not a private hold-out set. Some overlap with the checkpoint's original training data cannot be excluded, so this figure may be optimistic.",
+    "SAFETY: this module missed 7 of 157 diseased cases (4.5% false-negative rate) on the evaluated sample. Overall accuracy hides this because the non-diseased class dominates. Treat a negative result as non-informative, never as reassurance."
+  ],
+  "safety": {
+    "definition": "Positive = ['Mild Non-Proliferative DR', 'Moderate Non-Proliferative DR', 'Severe Non-Proliferative DR', 'Proliferative DR']. A false negative is a diseased case predicted as non-diseased.",
+    "diseased_samples": 157,
+    "missed_diseased_cases": 7,
+    "false_negative_rate": 0.0446,
+    "sensitivity_recall": 0.9554,
+    "specificity": 0.993,
+    "false_alarms": 1,
+    "warning": "SAFETY: this module missed 7 of 157 diseased cases (4.5% false-negative rate) on the evaluated sample. Overall accuracy hides this because the non-diseased class dominates. Treat a negative result as non-informative, never as reassurance."
+  }
+}

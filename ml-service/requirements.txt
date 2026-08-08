@@ -1,0 +1,25 @@
+fastapi==0.141.1
+uvicorn==0.52.1
+python-multipart==0.0.32
+pillow==12.3.0
+numpy==2.5.1
+opencv-python==5.0.0.93
+reportlab==5.0.0
+
+# PyTorch modules (brain tumor, knee osteoarthritis)
+torch==2.13.0
+torchvision==0.28.0
+
+# Legacy Keras .h5 modules (skin cancer, diabetic retinopathy).
+# tf-keras is required: Keras 3 cannot deserialise these older model configs.
+tensorflow==2.21.0
+tf-keras==2.21.0
+
+# Tabular heart-disease risk model
+scikit-learn==1.9.0
+pandas==3.0.5
+joblib==1.5.3
+
+# Tests
+pytest==9.1.1
+httpx==0.28.1

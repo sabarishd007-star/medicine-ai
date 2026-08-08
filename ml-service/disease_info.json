@@ -21,16 +21,65 @@
             "next_steps": "Consult an endocrinologist and neurosurgeon for a comprehensive check."
         }
     },
-    "pneumonia": {
-        "Pneumonia": {
-            "summary": "Infection inflaming air sacs in the lungs, which may fill with fluid.",
-            "stage_info": "Severity evaluated clinically via oxygen saturation and chest X-ray extent.",
-            "next_steps": "Prompt evaluation by a pulmonologist or physician is strongly recommended."
-        },
+    "knee_osteoarthritis": {
         "Normal": {
-            "summary": "Clear lung fields with no acute focal consolidation or pneumonia indicators.",
+            "summary": "No clear radiographic features of osteoarthritis in the evaluated knee X-ray.",
+            "stage_info": "This model outputs a coarse 3-way severity band, not a Kellgren-Lawrence grade.",
+            "next_steps": "Maintain joint health through activity and weight management; review if pain persists."
+        },
+        "Non Severe OA": {
+            "summary": "Radiographic features consistent with early to moderate osteoarthritic change.",
+            "stage_info": "Coarse band covering doubtful through moderate disease; formal KL grading requires a radiologist.",
+            "next_steps": "Consult an orthopaedic clinician about physiotherapy and pain management options."
+        },
+        "Severe OA": {
+            "summary": "Features consistent with advanced osteoarthritis, such as marked joint space narrowing.",
+            "stage_info": "Coarse band indicating advanced disease; surgical assessment is graded clinically, not by this tool.",
+            "next_steps": "Seek prompt orthopaedic consultation to discuss surgical and non-surgical options."
+        }
+    },
+    "skin_cancer": {
+        "Basal Cell Carcinoma (Cancer)": {
+            "summary": "The most common form of skin cancer, arising from basal cells; rarely metastasises.",
+            "stage_info": "Staging depends on lesion size, depth and location, confirmed only by biopsy.",
+            "next_steps": "Arrange a dermatologist appointment for biopsy and excision planning."
+        },
+        "Melanoma (Cancer)": {
+            "summary": "Aggressive malignancy of pigment-producing melanocytes; early detection is critical.",
+            "stage_info": "Staged by Breslow thickness and spread, determined only by excisional biopsy.",
+            "next_steps": "Seek urgent dermatology assessment. Do not delay professional evaluation."
+        },
+        "Nevus (Non-Cancerous)": {
+            "summary": "Common mole formed by a benign cluster of melanocytes.",
             "stage_info": "N/A",
-            "next_steps": "Continue routine clinical care if patient remains asymptomatic."
+            "next_steps": "Self-monitor using ABCDE criteria; report any change in size, colour or shape to a clinician."
+        }
+    },
+    "diabetic_retinopathy": {
+        "No DR": {
+            "summary": "No visible diabetic retinopathy features in the evaluated fundus image.",
+            "stage_info": "Grade 0 on the international DR severity scale.",
+            "next_steps": "Continue routine annual diabetic eye screening and glycaemic control."
+        },
+        "Mild Non-Proliferative DR": {
+            "summary": "Earliest stage, characterised by microaneurysms in the retinal vasculature.",
+            "stage_info": "Grade 1: microaneurysms only.",
+            "next_steps": "Confirm with an ophthalmologist and tighten blood glucose and blood pressure control."
+        },
+        "Moderate Non-Proliferative DR": {
+            "summary": "More extensive microaneurysms, haemorrhages and hard exudates than mild disease.",
+            "stage_info": "Grade 2: more than microaneurysms but less than severe NPDR.",
+            "next_steps": "Ophthalmology review is recommended; monitoring interval typically shortens."
+        },
+        "Severe Non-Proliferative DR": {
+            "summary": "Extensive haemorrhages, venous beading or intraretinal microvascular abnormalities.",
+            "stage_info": "Grade 3: high risk of progression to proliferative disease.",
+            "next_steps": "Prompt ophthalmology referral is strongly recommended."
+        },
+        "Proliferative DR": {
+            "summary": "Advanced stage with neovascularisation, carrying significant risk of vision loss.",
+            "stage_info": "Grade 4: sight-threatening disease.",
+            "next_steps": "Seek urgent ophthalmology care. Treatment may prevent irreversible vision loss."
         }
     }
 }
