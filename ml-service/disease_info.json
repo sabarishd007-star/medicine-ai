@@ -1,0 +1,36 @@
+{
+    "brain_tumor": {
+        "Glioma": {
+            "summary": "Gliomas originate in the glial cells surrounding nerve cells in the brain.",
+            "stage_info": "Requires clinical MRI with contrast and biopsy for official WHO grading.",
+            "next_steps": "Schedule an urgent consultation with a neuro-oncologist."
+        },
+        "Meningioma": {
+            "summary": "Meningiomas arise from the protective membranes surrounding the brain.",
+            "stage_info": "Typically classified into Grade I (benign), Grade II, or Grade III.",
+            "next_steps": "Consult a neurosurgeon to evaluate monitoring vs. intervention."
+        },
+        "No Tumor": {
+            "summary": "No significant tumor mass detected in the evaluated brain MRI scan.",
+            "stage_info": "N/A",
+            "next_steps": "If symptoms persist, follow up with a neurologist for further evaluation."
+        },
+        "Pituitary": {
+            "summary": "Abnormal growth located in the pituitary gland at the base of the brain.",
+            "stage_info": "Evaluated based on hormonal activity and spatial pressure on optic nerves.",
+            "next_steps": "Consult an endocrinologist and neurosurgeon for a comprehensive check."
+        }
+    },
+    "pneumonia": {
+        "Pneumonia": {
+            "summary": "Infection inflaming air sacs in the lungs, which may fill with fluid.",
+            "stage_info": "Severity evaluated clinically via oxygen saturation and chest X-ray extent.",
+            "next_steps": "Prompt evaluation by a pulmonologist or physician is strongly recommended."
+        },
+        "Normal": {
+            "summary": "Clear lung fields with no acute focal consolidation or pneumonia indicators.",
+            "stage_info": "N/A",
+            "next_steps": "Continue routine clinical care if patient remains asymptomatic."
+        }
+    }
+}

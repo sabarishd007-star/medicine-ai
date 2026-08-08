@@ -1,0 +1,25 @@
+# Node dependencies
+frontend/node_modules/
+frontend/dist/
+
+# Python Virtual Environment & Caches
+ml-service/venv/
+.venv/
+ml-service/__pycache__/
+ml-service/*.pth
+ml-service/*.pt
+ml-service/reports/*.pdf
+ml-service/temp_heatmaps/*
+
+# Java & Gradle builds
+backend/.gradle/
+backend/build/
+backend/out/
+backend/.settings/
+backend/.classpath
+backend/.project
+
+# IDE
+.vscode/
+.idea/
+*.DS_Store
