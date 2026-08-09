@@ -1,6 +1,8 @@
 # Node dependencies
+node_modules/
 frontend/node_modules/
 frontend/dist/
+dev.log
 
 # Python Virtual Environment & Caches
 ml-service/venv/
@@ -8,6 +10,7 @@ ml-service/venv/
 __pycache__/
 *.pyc
 ml-service/.pytest_cache/
+ml-service/.cache/
 ml-service/*.pth
 ml-service/*.pt
 ml-service/weights/*.pth
@@ -29,7 +32,10 @@ ml-service/temp_heatmaps/*
 # Java & Gradle builds
 backend/.gradle/
 backend/build/
+backend/bin/
 backend/out/
+backend/data/
+backend/*.log
 backend/.settings/
 backend/.classpath
 backend/.project
