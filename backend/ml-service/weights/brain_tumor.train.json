@@ -1,0 +1,17 @@
+{
+  "trained_at": "2026-08-11T01:07:24.859360+00:00",
+  "dataset": "Kaggle: sartajbhuvaji/brain-tumor-classification-mri",
+  "source_url": "https://www.kaggle.com/datasets/sartajbhuvaji/brain-tumor-classification-mri",
+  "splits": {
+    "train": 2294,
+    "validation": 576,
+    "test": 394
+  },
+  "epochs": 8,
+  "batch_size": 32,
+  "learning_rate": 0.0001,
+  "architecture": "resnet18 (ImageNet pretrained, fine-tuned)",
+  "best_val_accuracy": 0.967,
+  "quick_test_accuracy": 0.7843,
+  "note": "Author-defined Testing split used as held-out test. Run evaluate.py for full per-class metrics and false-negative rate."
+}

@@ -1,29 +1,33 @@
 # Node dependencies
 node_modules/
 frontend/node_modules/
+backend/frontend/node_modules/
 frontend/dist/
+backend/frontend/dist/
 dev.log
 
 # Python Virtual Environment & Caches
-ml-service/venv/
+backend/ml-service/venv/
 .venv/
 __pycache__/
 *.pyc
-ml-service/.pytest_cache/
-ml-service/.cache/
-ml-service/*.pth
-ml-service/*.pt
-ml-service/weights/*.pth
-ml-service/weights/*.h5
-ml-service/weights/*.joblib
-ml-service/weights/*.pkl
-ml-service/weights/*.csv
-ml-service/reports/*.pdf
-ml-service/temp_heatmaps/*
+backend/ml-service/.pytest_cache/
+backend/ml-service/.cache/
+backend/ml-service/*.pth
+backend/ml-service/*.pt
+backend/ml-service/weights/*.pth
+backend/ml-service/weights/*.h5
+backend/ml-service/weights/*.joblib
+backend/ml-service/weights/*.pkl
+backend/ml-service/weights/*.csv
+backend/ml-service/reports/*.pdf
+backend/ml-service/temp_heatmaps/*
+backend/ml-service/*.log
+backend/ml-service/*.log.err
 
 # Measured accuracy results ARE tracked: they are the evidence behind every
 # performance claim, and they are only a few KB each.
-!ml-service/weights/*.metrics.json
+!backend/ml-service/weights/*.metrics.json
 
 # Downloaded upstream project archives (source repos, hundreds of MB).
 # Fetch model weights with `python ml-service/fetch_weights.py` instead.
@@ -37,8 +41,8 @@ backend/out/
 backend/data/
 backend/*.log
 backend/.settings/
-backend/.classpath
-backend/.project
+backend/.classpath/
+backend/.project/
 
 # IDE
 .vscode/

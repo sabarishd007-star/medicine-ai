@@ -2,10 +2,28 @@ import { useEffect, useRef, useState } from 'react';
 import { assistantApi, errorMessage } from '../api/client';
 
 const SUGGESTIONS = [
-  'What can cause a persistent dry cough?',
-  'Why might I feel dizzy when standing up quickly?',
-  'What are common causes of frequent headaches?',
+  'I have a headache and feel nauseous when I stand up',
+  'I have had a dry cough for two weeks, what could cause it?',
+  'Why do I feel pain in my lower right abdomen?',
 ];
+
+const LIKELIHOOD_STYLE = {
+  common: 'badge-ok',
+  possible: 'badge-warn',
+  'less common': 'badge-muted',
+};
+
+const URGENCY_STYLE = {
+  'self-care': 'badge-ok',
+  'see-doctor-soon': 'badge-warn',
+  emergency: 'badge-danger',
+};
+
+const URGENCY_LABEL = {
+  'self-care': 'Self-care may be enough',
+  'see-doctor-soon': 'See a doctor soon',
+  emergency: 'Seek urgent care',
+};
 
 const GREETING = {
   role: 'assistant',
@@ -33,6 +51,71 @@ function renderText(text) {
       </span>
     );
   });
+}
+
+function AnalysisCard({ analysis }) {
+  if (!analysis) return null;
+  return (
+    <div
+      style={{
+        maxWidth: '82%',
+        marginBottom: 12,
+        background: '#f8fafc',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        padding: '12px 14px',
+      }}
+    >
+      <div className="row spread" style={{ marginBottom: 10 }}>
+        <span className="tiny muted" style={{ fontWeight: 700, textTransform: 'uppercase' }}>
+          Possible conditions
+        </span>
+        <span className={`badge ${URGENCY_STYLE[analysis.urgency] ?? 'badge-warn'}`}>
+          {URGENCY_LABEL[analysis.urgency] ?? analysis.urgency}
+        </span>
+      </div>
+
+      {analysis.summary && (
+        <p className="small muted" style={{ marginTop: 0, marginBottom: 10 }}>
+          {analysis.summary}
+        </p>
+      )}
+
+      <div className="grid" style={{ gap: 8 }}>
+        {analysis.conditions.map((condition, index) => (
+          <div
+            key={index}
+            style={{
+              background: '#fff',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              padding: '8px 10px',
+            }}
+          >
+            <div className="row spread" style={{ marginBottom: 4 }}>
+              <span className="small" style={{ fontWeight: 700 }}>
+                {condition.name}
+              </span>
+              <span className={`badge ${LIKELIHOOD_STYLE[condition.likelihood] ?? 'badge-muted'}`}>
+                {condition.likelihood}
+              </span>
+            </div>
+            {condition.briefExplanation && (
+              <p className="tiny muted" style={{ margin: 0 }}>
+                {condition.briefExplanation}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {analysis.recommendedAction && (
+        <p className="small" style={{ marginBottom: 0, marginTop: 10 }}>
+          <strong>Recommended:</strong> {analysis.recommendedAction}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function Bubble({ message }) {
@@ -134,6 +217,7 @@ export default function Assistant() {
             emergency: response.emergency,
             source: response.source,
             modelUnavailable: response.modelUnavailable,
+            analysis: response.analysis,
           },
         },
       ]);
@@ -173,7 +257,12 @@ export default function Assistant() {
         }}
       >
         {messages.map((message, index) => (
-          <Bubble key={index} message={message} />
+          <div key={index}>
+            <Bubble message={message} />
+            {message.role === 'assistant' && message.meta?.analysis && (
+              <AnalysisCard analysis={message.meta.analysis} />
+            )}
+          </div>
         ))}
 
         {sending && (

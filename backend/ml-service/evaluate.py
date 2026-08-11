@@ -72,7 +72,7 @@ def per_class_metrics(matrix, classes):
     return out
 
 
-def evaluate(disease: str, limit: int, stride: int, seed: int = 42, verbose: bool = True) -> dict:
+def evaluate(disease: str, limit: int, stride: int, seed: int = 42, data_dir: str = "", verbose: bool = True) -> dict:
     if disease not in ds.DATASETS:
         raise SystemExit(
             f"No evaluation dataset configured for '{disease}'. "
@@ -96,6 +96,12 @@ def evaluate(disease: str, limit: int, stride: int, seed: int = 42, verbose: boo
 
     if disease == "skin_cancer":
         sample_iter = ds.iter_skin_samples(limit=limit, stride=stride, seed=seed)
+    elif disease == "brain_tumor":
+        if not data_dir:
+            raise SystemExit(
+                "brain_tumor evaluation needs the Kaggle download path. "
+                "Pass --data-dir <extracted-folder>.")
+        sample_iter = ds.iter_brain_samples(data_dir, limit=limit)
     else:
         sample_iter = ds.iter_samples(spec, limit=limit, stride=stride, seed=seed)
 
@@ -153,9 +159,10 @@ def evaluate(disease: str, limit: int, stride: int, seed: int = 42, verbose: boo
         "evaluated_at": datetime.now(timezone.utc).isoformat(),
         "eval_seconds": round(time.time() - started, 1),
         "dataset": {
-            "name": spec.hf_dataset,
+            "name": ("Kaggle download (local)" if not spec.hf_dataset else spec.hf_dataset),
             "split": spec.split,
             "url": spec.source_url,
+            "data_dir": data_dir,
             "license_note": spec.license_note,
             "samples_evaluated": int(len(y_true)),
             "sampling": f"uniform random rows, seed={seed}",
@@ -220,6 +227,7 @@ POSITIVE_CLASSES = {
         "Proliferative DR",
     ],
     "knee_osteoarthritis": ["Non Severe OA", "Severe OA"],
+    "brain_tumor": ["Glioma", "Meningioma", "Pituitary"],
 }
 
 
@@ -291,6 +299,10 @@ def main() -> int:
     parser.add_argument("--all", action="store_true", help="evaluate every configured dataset")
     parser.add_argument("--limit", type=int, default=200, help="samples to evaluate")
     parser.add_argument("--stride", type=int, default=1, help="deprecated, ignored")
+    parser.add_argument(
+        "--data-dir",
+        help="Path to extracted dataset folder, required for brain_tumor (Kaggle download).",
+    )
     parser.add_argument("--seed", type=int, default=42, help="sampling seed")
     args = parser.parse_args()
 
@@ -304,7 +316,7 @@ def main() -> int:
     for disease in targets:
         print(f"\n=== Evaluating {disease} ===")
         try:
-            metrics = evaluate(disease, args.limit, args.stride, seed=args.seed)
+            metrics = evaluate(disease, args.limit, args.stride, seed=args.seed, data_dir=args.data_dir or "")
         except SystemExit as exc:
             print(f"  SKIPPED: {exc}")
             continue

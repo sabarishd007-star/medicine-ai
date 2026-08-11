@@ -1,14 +1,21 @@
 package com.mediscan.backend.assistant.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mediscan.backend.assistant.dto.ChatDtos.ChatMessage;
 import com.mediscan.backend.assistant.dto.ChatDtos.ChatRequest;
 import com.mediscan.backend.assistant.dto.ChatDtos.ChatResponse;
+import com.mediscan.backend.assistant.dto.ChatDtos.PossibleCondition;
+import com.mediscan.backend.assistant.dto.ChatDtos.SymptomAnalysis;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,6 +45,10 @@ public class AssistantService {
      * Rules the model must follow. These are duplicated by real code paths where
      * it matters: emergencies are caught by {@link EmergencyTriage} before the
      * model is called, because a prompt alone is not a safety control.
+     *
+     * <p>The structured-symptom block makes the assistant return a machine-readable
+     * analysis alongside its prose, so the React UI can render possible conditions
+     * as discrete cards instead of parsing free text.
      */
     static final String SYSTEM_PROMPT = """
             You are the Medical Assistant inside MediScan AI, a clinical decision \
@@ -51,12 +62,12 @@ public class AssistantService {
             Follow every one of these rules in every response:
 
             1. NEVER give a definitive diagnosis. Do not say "you have X". Use \
-               language such as "this can sometimes be associated with" or \
-               "common causes include".
+               language such as "based on what you've described, some possibilities \
+               include" or "this can sometimes be associated with".
 
             2. ALWAYS mention two or three plausible common causes rather than a \
-               single one. Naming only one cause implies a certainty you do not \
-               have.
+               single one. Naming only one cause implies a certainty you do not have. \
+               Prefer common explanations over rare ones.
 
             3. ALWAYS end with a clear line recommending the reader consult a \
                qualified healthcare professional, especially if symptoms persist, \
@@ -64,10 +75,10 @@ public class AssistantService {
 
             4. If the user describes anything potentially life-threatening - chest \
                pain, difficulty breathing, severe bleeding, loss of consciousness, \
-               stroke signs, anaphylaxis, poisoning, or thoughts of self-harm or \
-               suicide - respond ONLY by directing them to emergency services or a \
-               crisis line. Do not discuss the symptom, do not list causes, and do \
-               not offer any other information in that reply.
+               stroke signs, anaphylaxis, or thoughts of self-harm or suicide - \
+               respond ONLY by directing them to emergency services or a crisis \
+               line. Do not discuss the symptom, do not list causes, and do not \
+               offer any other information in that reply.
 
             5. NEVER recommend specific medications by brand or generic name, and \
                never give dosages, frequencies, or prescription advice. You may \
@@ -81,10 +92,46 @@ public class AssistantService {
                a request to interpret a specific scan, or anything unrelated to \
                health - say plainly that it is outside what you can help with.
 
-            Style: plain language, warm but not casual, no emoji. Keep replies under \
+            --- STRUCTURED SYMPTOM ANALYSIS ---
+            When the user describes symptoms, ALSO include a JSON block at the end \
+            of your reply wrapped in triple backticks with the language tag \
+            `analysis`. Use EXACTLY this shape:
+
+            ```json
+            {
+              "conditions": [
+                {
+                  "name": "Common condition name (no brand names)",
+                  "likelihood": "common",
+                  "briefExplanation": "One sentence tying it to the symptoms described"
+                }
+              ],
+              "urgency": "self-care | see-doctor-soon | emergency",
+              "recommendedAction": "One sentence on what to do next",
+              "summary": "One plain-language sentence framing these as possibilities"
+            }
+            ```
+
+            Rules for the JSON block:
+            - "likelihood" MUST be exactly "common", "possible", or "less common".
+            - Include 2-4 conditions, ordered from most to least likely.
+            - "urgency": "self-care" for mild/vague symptoms, "see-doctor-soon" for \
+              anything persisting beyond a few days or interfering with daily life, \
+              "emergency" ONLY for the red-flag cases in rule 4 (those never reach \
+              this block because rule 4 fires first).
+            - NEVER put a diagnosis in "name" - phrase it as "Possible X" or \
+              "X (a condition that...)".
+            - The JSON MUST be valid and the only code block in your reply.
+
+            Style: plain language, warm but not casual, no emoji. Keep prose under \
             roughly 200 words. Use short paragraphs or bullets. Never invent \
             statistics or cite studies you cannot verify.
             """;
+
+    private static final Pattern ANALYSIS_BLOCK =
+            Pattern.compile("```json\\s*(\\{.*?\\})\\s*```", Pattern.DOTALL);
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final RestTemplate restTemplate;
     private final String provider;
@@ -141,7 +188,8 @@ public class AssistantService {
                     "safety_guard",
                     false,
                     DISCLAIMER,
-                    Instant.now());
+                    Instant.now(),
+                    null);
         }
 
         if (!isConfigured()) {
@@ -157,7 +205,8 @@ public class AssistantService {
                     "not_configured",
                     true,
                     DISCLAIMER,
-                    Instant.now());
+                    Instant.now(),
+                    null);
         }
 
         try {
@@ -168,7 +217,23 @@ public class AssistantService {
             if (reply == null || reply.isBlank()) {
                 return unavailable("The assistant returned an empty response.");
             }
-            return new ChatResponse(reply.trim(), false, "llm", false, DISCLAIMER, Instant.now());
+
+            // Pull the structured analysis out of the reply. The prose keeps the
+            // JSON block so the raw text still reads naturally; the parsed form
+            // drives the UI cards. If parsing fails we still return the prose.
+            String prose = reply.trim();
+            SymptomAnalysis analysis = null;
+            try {
+                analysis = extractAnalysis(prose);
+                if (analysis != null) {
+                    prose = prose.replaceFirst("```json\\s*\\{.*?\\}\\s*```", "").trim();
+                }
+            } catch (Exception ex) {
+                log.debug("Could not parse analysis block: {}", ex.getMessage());
+            }
+
+            return new ChatResponse(
+                    prose, false, "llm", false, DISCLAIMER, Instant.now(), analysis);
 
         } catch (Exception ex) {
             // Never surface provider internals or the key to the client.
@@ -188,7 +253,71 @@ public class AssistantService {
                 "unavailable",
                 true,
                 DISCLAIMER,
-                Instant.now());
+                Instant.now(),
+                null);
+    }
+
+    /**
+     * Extracts the structured symptom analysis from the model's reply. Returns
+     * null when there is no analysis block or it fails to parse — the prose is
+     * still useful, so this degrades gracefully rather than erroring.
+     */
+    private SymptomAnalysis extractAnalysis(String reply) throws JsonProcessingException {
+        Matcher matcher = ANALYSIS_BLOCK.matcher(reply);
+        if (!matcher.find()) {
+            return null;
+        }
+        JsonNode root = MAPPER.readTree(matcher.group(1));
+
+        List<PossibleCondition> conditions = new ArrayList<>();
+        JsonNode conditionsNode = root.get("conditions");
+        if (conditionsNode != null && conditionsNode.isArray()) {
+            for (JsonNode node : conditionsNode) {
+                String name = textOr(node, "name", "Possible condition");
+                String likelihood = normaliseLikelihood(textOr(node, "likelihood", "possible"));
+                String explanation = textOr(node, "briefExplanation", "");
+                conditions.add(new PossibleCondition(name, likelihood, explanation));
+            }
+        }
+
+        if (conditions.isEmpty()) {
+            return null;
+        }
+
+        return new SymptomAnalysis(
+                conditions,
+                normaliseUrgency(textOr(root, "urgency", "see-doctor-soon")),
+                textOr(root, "recommendedAction", "Consider consulting a healthcare professional."),
+                textOr(root, "summary", "Based on what you described, here are some possibilities."));
+    }
+
+    private static String normaliseLikelihood(String value) {
+        if (value == null) {
+            return "possible";
+        }
+        return switch (value.trim().toLowerCase()) {
+            case "common" -> "common";
+            case "less common", "less-common", "lesscommon", "rare" -> "less common";
+            default -> "possible";
+        };
+    }
+
+    private static String normaliseUrgency(String value) {
+        if (value == null) {
+            return "see-doctor-soon";
+        }
+        return switch (value.trim().toLowerCase()) {
+            case "self-care", "self care", "selfcare" -> "self-care";
+            case "emergency" -> "emergency";
+            default -> "see-doctor-soon";
+        };
+    }
+
+    private static String textOr(JsonNode node, String field, String fallback) {
+        JsonNode value = node.get(field);
+        return (value == null || value.isNull() || value.asText().isBlank())
+                ? fallback
+                : value.asText();
     }
 
     /** Trims history so a long session cannot blow the context window or the bill. */

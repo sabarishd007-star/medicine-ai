@@ -14,6 +14,7 @@ import time
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
 
 from PIL import Image
@@ -75,6 +76,22 @@ DATASETS: Dict[str, DatasetSpec] = {
         license_note="Public knee osteoarthritis KL-grading dataset mirror.",
     ),
 }
+
+# Brain tumour uses the local Kaggle download's held-out Testing folder rather
+# than a streaming source. The path is supplied at eval time via --data-dir.
+BRAIN_SPEC = DatasetSpec(
+    key="brain_tumor",
+    disease="brain_tumor",
+    hf_dataset="",
+    split="Testing",
+    native_labels=["glioma_tumor", "meningioma_tumor", "no_tumor", "pituitary_tumor"],
+    exact_taxonomy=True,
+    mapping_note="Kaggle download held-out Testing folder. Same source the model was trained on, never seen during training.",
+    source_url="https://www.kaggle.com/datasets/sartajbhuvaji/brain-tumor-classification-mri",
+    license_note="Kaggle public dataset.",
+)
+
+DATASETS["brain_tumor"] = BRAIN_SPEC
 
 
 HAM_GT_URL = "https://dataverse.harvard.edu/api/access/datafile/6924466"
@@ -170,6 +187,41 @@ def iter_skin_samples(
         try:
             payload = _fetch_bytes(ISIC_IMAGE_URL.format(isic_id=image_id))
             image = Image.open(io.BytesIO(payload)).convert("RGB")
+        except Exception:
+            continue
+        yield image, label
+        produced += 1
+
+
+# Kaggle folder name -> registry class index for brain_tumor.
+BRAIN_LABEL_FOLDERS = {
+    "glioma_tumor": 0,   # Glioma
+    "meningioma_tumor": 1,  # Meningioma
+    "no_tumor": 2,       # No Tumor
+    "pituitary_tumor": 3,  # Pituitary
+}
+
+
+def iter_brain_samples(data_dir: str, limit: int) -> Iterator[Tuple[Image.Image, int]]:
+    """Yield (image, class_index) from the Kaggle download's held-out Testing folder."""
+    test_dir = Path(data_dir) / "Testing"
+    if not test_dir.exists():
+        return
+    entries = []
+    for folder, label in BRAIN_LABEL_FOLDERS.items():
+        folder_path = test_dir / folder
+        if not folder_path.exists():
+            continue
+        for path in folder_path.iterdir():
+            if path.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp"}:
+                entries.append((path, label))
+    random.shuffle(entries)
+    produced = 0
+    for path, label in entries:
+        if produced >= limit:
+            break
+        try:
+            image = Image.open(path).convert("RGB")
         except Exception:
             continue
         yield image, label

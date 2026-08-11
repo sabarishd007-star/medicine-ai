@@ -35,6 +35,25 @@ public final class ChatDtos {
             String source,
             boolean modelUnavailable,
             String disclaimer,
-            Instant at) {
+            Instant at,
+            SymptomAnalysis analysis) {
+    }
+
+    /**
+     * Structured symptom analysis. {@code conditions} are possibilities, not a
+     * diagnosis — the UI must render them with that framing. Null when the
+     * request was not a symptom analysis (general question or emergency).
+     */
+    public record SymptomAnalysis(
+            java.util.List<PossibleCondition> conditions,
+            String urgency,
+            String recommendedAction,
+            String summary) {
+    }
+
+    public record PossibleCondition(
+            String name,
+            String likelihood, // "common", "possible", "less common"
+            String briefExplanation) {
     }
 }

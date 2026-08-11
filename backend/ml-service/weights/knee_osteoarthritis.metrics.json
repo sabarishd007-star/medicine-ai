@@ -9,19 +9,20 @@
     "Non Severe OA",
     "Severe OA"
   ],
-  "evaluated_at": "2026-08-08T17:20:15.473819+00:00",
-  "eval_seconds": 1084.8,
+  "evaluated_at": "2026-08-11T12:42:16.606798+00:00",
+  "eval_seconds": 1246.0,
   "dataset": {
     "name": "SilpaCS/kneeosteoarthritis",
     "split": "train",
     "url": "https://huggingface.co/datasets/SilpaCS/kneeosteoarthritis",
+    "data_dir": "",
     "license_note": "Public knee osteoarthritis KL-grading dataset mirror.",
     "samples_evaluated": 300,
     "sampling": "uniform random rows, seed=42",
     "class_support": {
-      "Normal": 137,
-      "Non Severe OA": 125,
-      "Severe OA": 38
+      "Normal": 140,
+      "Non Severe OA": 123,
+      "Severe OA": 37
     },
     "native_labels": [
       "KL-0",
@@ -33,54 +34,54 @@
     "label_mapping_exact": false,
     "mapping_note": "5-point Kellgren-Lawrence grades collapsed into the model's 3 coarse bands (KL-0 -> Normal, KL-1/2 -> Non Severe OA, KL-3/4 -> Severe OA). KL-1 'doubtful' is ambiguous between Normal and Non Severe, so some disagreement reflects the mapping rather than the model."
   },
-  "accuracy": 0.6567,
-  "macro_precision": 0.6693,
-  "macro_recall": 0.7105,
-  "macro_f1": 0.6407,
-  "weighted_f1": 0.6216,
-  "majority_class_baseline": 0.4567,
+  "accuracy": 0.6633,
+  "macro_precision": 0.664,
+  "macro_recall": 0.7064,
+  "macro_f1": 0.6433,
+  "weighted_f1": 0.6329,
+  "majority_class_baseline": 0.4667,
   "beats_majority_baseline": true,
   "confidence_gate": {
     "threshold": 0.75,
-    "coverage": 0.6833,
-    "accuracy_on_gated": 0.7366,
-    "mean_confidence": 0.8107
+    "coverage": 0.6433,
+    "accuracy_on_gated": 0.7668,
+    "mean_confidence": 0.7909
   },
   "per_class": {
     "Normal": {
-      "precision": 0.6455,
-      "recall": 0.8905,
-      "f1": 0.7485,
-      "support": 137
+      "precision": 0.6631,
+      "recall": 0.8857,
+      "f1": 0.7584,
+      "support": 140
     },
     "Non Severe OA": {
-      "precision": 0.7692,
-      "recall": 0.32,
-      "f1": 0.452,
-      "support": 125
+      "precision": 0.75,
+      "recall": 0.3415,
+      "f1": 0.4693,
+      "support": 123
     },
     "Severe OA": {
-      "precision": 0.5932,
-      "recall": 0.9211,
-      "f1": 0.7216,
-      "support": 38
+      "precision": 0.5789,
+      "recall": 0.8919,
+      "f1": 0.7021,
+      "support": 37
     }
   },
   "confusion_matrix": [
     [
-      122,
-      10,
+      124,
+      11,
       5
     ],
     [
-      66,
-      40,
+      62,
+      42,
       19
     ],
     [
       1,
-      2,
-      35
+      3,
+      33
     ]
   ],
   "confusion_matrix_rows": "true label",
@@ -88,16 +89,16 @@
   "caveats": [
     "Measured on a public mirror of the test data, not a private hold-out set. Some overlap with the checkpoint's original training data cannot be excluded, so this figure may be optimistic.",
     "Dataset labels were collapsed to fit the model's coarser class list; part of the error is mapping loss, not model error.",
-    "SAFETY: this module missed 67 of 163 diseased cases (41.1% false-negative rate) on the evaluated sample. Overall accuracy hides this because the non-diseased class dominates. Treat a negative result as non-informative, never as reassurance."
+    "SAFETY: this module missed 63 of 160 diseased cases (39.4% false-negative rate) on the evaluated sample. Overall accuracy hides this because the non-diseased class dominates. Treat a negative result as non-informative, never as reassurance."
   ],
   "safety": {
     "definition": "Positive = ['Non Severe OA', 'Severe OA']. A false negative is a diseased case predicted as non-diseased.",
-    "diseased_samples": 163,
-    "missed_diseased_cases": 67,
-    "false_negative_rate": 0.411,
-    "sensitivity_recall": 0.589,
-    "specificity": 0.8905,
-    "false_alarms": 15,
-    "warning": "SAFETY: this module missed 67 of 163 diseased cases (41.1% false-negative rate) on the evaluated sample. Overall accuracy hides this because the non-diseased class dominates. Treat a negative result as non-informative, never as reassurance."
+    "diseased_samples": 160,
+    "missed_diseased_cases": 63,
+    "false_negative_rate": 0.3937,
+    "sensitivity_recall": 0.6062,
+    "specificity": 0.8857,
+    "false_alarms": 16,
+    "warning": "SAFETY: this module missed 63 of 160 diseased cases (39.4% false-negative rate) on the evaluated sample. Overall accuracy hides this because the non-diseased class dominates. Treat a negative result as non-informative, never as reassurance."
   }
 }
