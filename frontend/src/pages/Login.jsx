@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { errorMessage, firebaseErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { GoogleIcon } from '../components/GoogleIcon';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
@@ -19,6 +20,21 @@ export default function Login() {
       navigate('/dashboard');
     } catch (err) {
       setError(firebaseErrorMessage(err, errorMessage(err, 'Could not sign in.')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    setError('');
+    setBusy(true);
+    try {
+      // Returns null when the sign-in redirects the page (popup was blocked).
+      if (await loginWithGoogle()) {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      setError(firebaseErrorMessage(err, errorMessage(err, 'Could not sign in with Google.')));
     } finally {
       setBusy(false);
     }
@@ -59,6 +75,12 @@ export default function Login() {
             {busy ? <span className="spinner" /> : 'Log in'}
           </button>
         </form>
+
+        <div className="divider">or</div>
+
+        <button type="button" className="btn-google" onClick={handleGoogle} disabled={busy}>
+          <GoogleIcon /> Continue with Google
+        </button>
 
         <p className="small muted" style={{ marginTop: 16, marginBottom: 0 }}>
           No account? <Link to="/register">Create one</Link>

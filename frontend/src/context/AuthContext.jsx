@@ -1,9 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
   signOut,
 } from 'firebase/auth';
 import { auth, firebaseConfigured } from '../firebase';
@@ -31,7 +34,15 @@ export function AuthProvider({ children }) {
       try {
         const token = await firebaseUser.getIdToken();
         tokenStore.set(token);
-        const profile = await authApi.me();
+        // Existing users load their profile. A user who never completed
+        // registration (e.g. first-time Google sign-in) is auto-created by
+        // the backend login endpoint instead.
+        let profile;
+        try {
+          profile = await authApi.me();
+        } catch {
+          profile = await authApi.login({ idToken: token });
+        }
         setUser(profile);
       } catch {
         tokenStore.clear();
@@ -67,6 +78,31 @@ export function AuthProvider({ children }) {
     return profile;
   }, []);
 
+  const loginWithGoogle = useCallback(async () => {
+    if (!firebaseConfigured) {
+      throw new Error('Firebase is not configured. Add your keys to frontend/.env.');
+    }
+    const provider = new GoogleAuthProvider();
+    let credential;
+    try {
+      credential = await signInWithPopup(auth, provider);
+    } catch (error) {
+      // Popup blockers hide the sign-in window. Fall back to a full-page
+      // redirect; when the user returns, onAuthStateChanged completes sign-in.
+      if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/popup-closed-by-user') {
+        await signInWithRedirect(auth, provider);
+        return null;
+      }
+      throw error;
+    }
+    const token = await credential.user.getIdToken();
+    tokenStore.set(token);
+    // The backend login endpoint auto-creates the local account when missing.
+    const profile = await authApi.login({ idToken: token });
+    setUser(profile);
+    return profile;
+  }, []);
+
   const logout = useCallback(async () => {
     if (firebaseConfigured) {
       await signOut(auth);
@@ -91,8 +127,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, refresh, resetPassword }),
-    [user, loading, login, register, logout, refresh, resetPassword],
+    () => ({ user, loading, login, register, loginWithGoogle, logout, refresh, resetPassword }),
+    [user, loading, login, register, loginWithGoogle, logout, refresh, resetPassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
