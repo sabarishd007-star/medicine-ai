@@ -5,6 +5,13 @@ backend/frontend/node_modules/
 frontend/dist/
 backend/frontend/dist/
 dev.log
+*.log
+*.log.err
+
+# Firebase service-account private keys - never commit these.
+*service-account*.json
+*firebase*.json
+backend/firebase/
 
 # Python Virtual Environment & Caches
 backend/ml-service/venv/

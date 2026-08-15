@@ -1,6 +1,5 @@
 package com.mediscan.backend.dto;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -10,15 +9,12 @@ public final class AuthDtos {
     }
 
     public record RegisterRequest(
-            @NotBlank @Email String email,
-            @NotBlank @Size(min = 8, max = 100, message = "Password must be at least 8 characters")
-            String password,
+            @NotBlank String idToken,
             @NotBlank @Size(max = 120) String fullName) {
     }
 
     public record LoginRequest(
-            @NotBlank @Email String email,
-            @NotBlank String password) {
+            @NotBlank String idToken) {
     }
 
     public record AuthResponse(

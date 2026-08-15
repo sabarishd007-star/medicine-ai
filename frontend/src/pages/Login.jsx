@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { errorMessage } from '../api/client';
+import { errorMessage, firebaseErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
@@ -18,7 +18,7 @@ export default function Login() {
       await login(form.email, form.password);
       navigate('/dashboard');
     } catch (err) {
-      setError(errorMessage(err, 'Could not sign in.'));
+      setError(firebaseErrorMessage(err, errorMessage(err, 'Could not sign in.')));
     } finally {
       setBusy(false);
     }

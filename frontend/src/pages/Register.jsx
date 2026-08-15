@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { errorMessage } from '../api/client';
+import { errorMessage, firebaseErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 export default function Register() {
@@ -22,7 +22,7 @@ export default function Register() {
       await register(form);
       navigate('/dashboard');
     } catch (err) {
-      setError(errorMessage(err, 'Could not create the account.'));
+      setError(firebaseErrorMessage(err, errorMessage(err, 'Could not create the account.')));
     } finally {
       setBusy(false);
     }

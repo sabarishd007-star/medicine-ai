@@ -1,4 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
+import { auth, firebaseConfigured } from '../firebase';
 import { authApi, tokenStore } from '../api/client';
 
 const AuthContext = createContext(null);
@@ -7,37 +15,71 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Restore the session whenever Firebase confirms a signed-in user.
   useEffect(() => {
-    if (!tokenStore.get()) {
+    if (!firebaseConfigured) {
       setLoading(false);
-      return;
+      return undefined;
     }
-    authApi
-      .me()
-      .then(setUser)
-      .catch(() => tokenStore.clear())
-      .finally(() => setLoading(false));
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        tokenStore.clear();
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      try {
+        const token = await firebaseUser.getIdToken();
+        tokenStore.set(token);
+        const profile = await authApi.me();
+        setUser(profile);
+      } catch {
+        tokenStore.clear();
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return unsubscribe;
   }, []);
 
-  const applySession = useCallback((data) => {
-    tokenStore.set(data.token);
-    setUser(data.user);
-    return data.user;
+  const login = useCallback(async (email, password) => {
+    if (!firebaseConfigured) {
+      throw new Error('Firebase is not configured. Add your keys to frontend/.env.');
+    }
+    const credential = await signInWithEmailAndPassword(auth, email, password);
+    const token = await credential.user.getIdToken();
+    tokenStore.set(token);
+    const profile = await authApi.me();
+    setUser(profile);
+    return profile;
   }, []);
 
-  const login = useCallback(
-    async (email, password) => applySession(await authApi.login({ email, password })),
-    [applySession],
-  );
+  const register = useCallback(async ({ email, password, fullName }) => {
+    if (!firebaseConfigured) {
+      throw new Error('Firebase is not configured. Add your keys to frontend/.env.');
+    }
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
+    const token = await credential.user.getIdToken();
+    tokenStore.set(token);
+    const profile = await authApi.register({ idToken: token, fullName });
+    setUser(profile);
+    return profile;
+  }, []);
 
-  const register = useCallback(
-    async (payload) => applySession(await authApi.register(payload)),
-    [applySession],
-  );
-
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    if (firebaseConfigured) {
+      await signOut(auth);
+    }
     tokenStore.clear();
     setUser(null);
+  }, []);
+
+  const resetPassword = useCallback(async (email) => {
+    if (!firebaseConfigured) {
+      throw new Error('Firebase is not configured. Add your keys to frontend/.env.');
+    }
+    await sendPasswordResetEmail(auth, email);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -49,8 +91,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, refresh }),
-    [user, loading, login, register, logout, refresh],
+    () => ({ user, loading, login, register, logout, refresh, resetPassword }),
+    [user, loading, login, register, logout, refresh, resetPassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

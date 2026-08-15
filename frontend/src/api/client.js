@@ -37,9 +37,35 @@ export function errorMessage(error, fallback = 'Something went wrong.') {
   return error?.response?.data?.message || error?.message || fallback;
 }
 
+/** Translates Firebase Auth error codes into friendly messages. */
+export function firebaseErrorMessage(error, fallback = 'Something went wrong.') {
+  const message = error?.message || '';
+  const code = error?.code || '';
+  if (message.includes('Firebase is not configured')) {
+    return 'Firebase is not configured. Add your keys to frontend/.env and restart the app.';
+  }
+  switch (code) {
+    case 'auth/invalid-email':
+      return 'Enter a valid email address.';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'Invalid email or password.';
+    case 'auth/email-already-in-use':
+      return 'An account with that email already exists.';
+    case 'auth/weak-password':
+      return 'Password must be at least 6 characters.';
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Try again later.';
+    case 'auth/network-request-failed':
+      return 'Network error. Check your connection.';
+    default:
+      return error?.message || fallback;
+  }
+}
+
 export const authApi = {
   register: (payload) => api.post('/auth/register', payload).then((r) => r.data),
-  login: (payload) => api.post('/auth/login', payload).then((r) => r.data),
   me: () => api.get('/auth/me').then((r) => r.data),
 };
 
