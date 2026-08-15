@@ -229,6 +229,20 @@ def dr_preprocess(pil_image: Image.Image) -> np.ndarray:
     return np.expand_dims(arr, axis=0)
 
 
+def cxr_preprocess(pil_image: Image.Image) -> np.ndarray:
+    """CheXNet preprocessing: 224x224 grayscale, single channel, ImageNet mean/std.
+
+    Mirrors the KlepeisLab/ChestX-ray14 pipeline: the image is converted to
+    grayscale, resized to 224x224, normalized with ImageNet statistics and given a
+    singleton channel axis so a DenseNet-121 trained on (224, 224, 1) inputs can
+    ingest it directly.
+    """
+    gray = pil_image.convert("L").resize((224, 224), Image.BILINEAR)
+    arr = np.asarray(gray, dtype=np.float32) / 255.0
+    arr = (arr - IMAGENET_MEAN[0]) / IMAGENET_STD[0]
+    return np.expand_dims(arr, axis=(0, -1))
+
+
 def decode_ordinal(scores: np.ndarray, threshold: float) -> int:
     """Ordinal (CORAL-style) head: stage = count of sigmoid units above threshold - 1."""
     return int(max((scores > threshold).sum() - 1, 0))

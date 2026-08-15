@@ -81,5 +81,17 @@
             "stage_info": "Grade 4: sight-threatening disease.",
             "next_steps": "Seek urgent ophthalmology care. Treatment may prevent irreversible vision loss."
         }
+    },
+    "pneumonia": {
+        "Normal": {
+            "summary": "No radiographic evidence of pneumonia in the evaluated chest X-ray.",
+            "stage_info": "N/A",
+            "next_steps": "If cough or fever persists, follow up with a clinician for further evaluation."
+        },
+        "Pneumonia": {
+            "summary": "Radiographic features consistent with pneumonia - an inflammatory lung opacity, often consolidation or ground-glass change.",
+            "stage_info": "Severity (mild/moderate/severe) is assessed clinically using PSI/CURB-65; this screening tool flags presence only.",
+            "next_steps": "Seek clinical evaluation promptly. Management depends on severity, comorbidities, and local resistance patterns."
+        }
     }
 }

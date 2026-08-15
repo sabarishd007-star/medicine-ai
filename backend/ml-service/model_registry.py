@@ -126,6 +126,30 @@ REGISTRY: Dict[str, DiseaseSpec] = {
             "upstream threshold 0.3776. No independently reproduced test metrics."
         ),
     ),
+    "pneumonia": DiseaseSpec(
+        key="pneumonia",
+        display_name="Pneumonia",
+        modality="Chest X-ray",
+        classes=["Normal", "Pneumonia"],
+        framework=FRAMEWORK_KERAS,
+        weights_file="pneumonia_cheXnet.h5",
+        architecture="densenet121",
+        input_size=224,
+        dataset="NIH ChestX-ray14 / Kaggle Chest X-Ray Pneumonia (binary Normal/Pneumonia)",
+        confidence_threshold=0.7,
+        last_conv_layer="conv5_block32_concat",
+        source="CheXNet (Rajpurkar et al., Stanford, 2017) / KlepeisLab/ChestX-ray14",
+        provenance=(
+            "CheXNet DenseNet-121 trained for radiologist-level pneumonia/opacity "
+            "detection on chest X-rays (Rajpurkar et al., 'CheXNet: Radiologist-Level "
+            "Pneumonia Detection on Chest X-Rays', Stanford ML Group, 2017). Supports "
+            "Grad-CAM on the final DenseNet conv block. Install validated weights at "
+            "ml-service/weights/pneumonia_cheXnet.h5; until then served as UNTRAINED_BACKBONE. "
+            "See also: 'Trustworthy pneumonia detection in chest X-ray imaging' (PLOS ONE 2025, "
+            "ViT + Grad-CAM) and 'Pneumonia and pneumothorax detection: A multi-factor "
+            "evaluation' (PLOS ONE 2026, ViT on NIH ChestX-ray14)."
+        ),
+    ),
 }
 
 
@@ -241,6 +265,8 @@ def _build_keras_backend(spec: DiseaseSpec, path: str):
         preprocess = backends.skin_preprocess
     elif spec.key == "diabetic_retinopathy":
         preprocess = backends.dr_preprocess
+    elif spec.key == "pneumonia":
+        preprocess = backends.cxr_preprocess
     else:
         preprocess = backends.skin_preprocess
 

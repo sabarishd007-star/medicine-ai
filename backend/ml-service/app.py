@@ -103,6 +103,34 @@ def analyze_image(disease: str, pil_image: Image.Image, source_name: str = "scan
     bundle = get_bundle(disease)
     spec = bundle.spec
 
+    # A Keras module with no checkpoint on disk has no loaded backend at all.
+    # Short-circuit gracefully instead of crashing on `backend.infer(...)`.
+    if bundle.backend is None:
+        return {
+            "disease": spec.key,
+            "disease_display": spec.display_name,
+            "modality": spec.modality,
+            "prediction": "Not Clinically Valid - Untrained Model",
+            "top_class": spec.classes[0],
+            "confidence": 0.0,
+            "confidence_threshold": round(spec.confidence_threshold * 100, 2),
+            "is_conclusive": False,
+            "class_probabilities": {label: 0.0 for label in spec.classes},
+            "score_semantics": "unavailable",
+            "stage": None,
+            "model_status": bundle.status,
+            "framework": spec.framework,
+            "architecture": spec.architecture,
+            "model_sha256": None,
+            "model_metrics": None,
+            "provenance": spec.provenance,
+            "gradcam_available": False,
+            "gradcam_coverage": None,
+            "heatmap_path": None,
+            "heatmap_url": None,
+            "analyzed_at": datetime.now(timezone.utc).isoformat(),
+        }
+
     output = bundle.backend.infer(pil_image)
     scores = np.asarray(output.probabilities, dtype=np.float64)
 
