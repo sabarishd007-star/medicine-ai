@@ -36,6 +36,11 @@ from model_registry import (
     list_diseases,
 )
 from pdf_generator import generate_pdf_report
+from segmentation import (
+    generate_segmentation_from_gradcam,
+    generate_segmentation_mask,
+    is_medsam_available,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("mediscan.ml")
@@ -324,3 +329,105 @@ def heart_predict(payload: heart_risk.HeartRiskRequest) -> dict:
     except Exception as exc:
         logger.exception("Heart risk inference failed")
         raise HTTPException(status_code=500, detail="Heart risk inference failed.") from exc
+
+
+SEGMENTATION_DIR = os.path.join(BASE_DIR, "temp_segmentations")
+os.makedirs(SEGMENTATION_DIR, exist_ok=True)
+
+app.mount("/segmentations", StaticFiles(directory=SEGMENTATION_DIR), name="segmentations")
+
+
+@app.get("/segmentation/status")
+def segmentation_status() -> dict:
+    """Check if MedSAM segmentation is available."""
+    return {
+        "available": is_medsam_available(),
+        "checkpoint_path": "./weights/medsam_vit_b.pth",
+        "opencv_available": True,
+    }
+
+
+@app.post("/segmentation/generate")
+async def generate_segmentation(
+    disease: str = Form(...),
+    patientName: str = Form(...),
+    patientAge: int = Form(...),
+    file: UploadFile = File(...),
+    use_gradcam_roi: bool = Form(True),
+    bbox_x1: Optional[float] = Form(None),
+    bbox_y1: Optional[float] = Form(None),
+    bbox_x2: Optional[float] = Form(None),
+    bbox_y2: Optional[float] = Form(None),
+):
+    """
+    Generate a precise MedSAM segmentation mask for the uploaded scan.
+
+    If `use_gradcam_roi` is true, automatically derives the bounding box from
+    the Grad-CAM heatmap. Otherwise, uses the provided bbox coordinates.
+    """
+    if disease not in REGISTRY:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown disease '{disease}'. Supported: {sorted(REGISTRY)}",
+        )
+    if not is_medsam_available():
+        raise HTTPException(
+            status_code=503,
+            detail="MedSAM segmentation not available. Install checkpoint at ./weights/medsam_vit_b.pth",
+        )
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=422, detail="Uploaded file is empty.")
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit.",
+        )
+
+    pil_image = _decode_image(raw)
+
+    # First run inference to get Grad-CAM
+    result = analyze_image(disease, pil_image, file.filename or "scan")
+
+    if result.get("gradcam_available") and use_gradcam_roi:
+        # Need to re-run to get the raw CAM
+        bundle = get_bundle(disease)
+        if bundle.backend is not None:
+            output = bundle.backend.infer(pil_image)
+            cam = output.cam
+        else:
+            cam = None
+    else:
+        cam = None
+
+    if cam is not None and use_gradcam_roi:
+        seg_result = generate_segmentation_from_gradcam(pil_image, cam)
+    else:
+        if not all(v is not None for v in [bbox_x1, bbox_y1, bbox_x2, bbox_y2]):
+            raise HTTPException(
+                status_code=422,
+                detail="Provide bbox_x1, bbox_y1, bbox_x2, bbox_y2 when not using Grad-CAM ROI.",
+            )
+        seg_result = generate_segmentation_mask(pil_image, [bbox_x1, bbox_y1, bbox_x2, bbox_y2])
+
+    if seg_result is None:
+        raise HTTPException(status_code=500, detail="Segmentation failed.")
+
+    overlay_img, mask_img, score = seg_result
+
+    # Save segmentation outputs
+    import uuid
+    name = f"{_safe_stem(patientName, 'patient')}_{uuid.uuid4().hex[:8]}"
+    overlay_path = os.path.join(SEGMENTATION_DIR, f"{name}_overlay.png")
+    mask_path = os.path.join(SEGMENTATION_DIR, f"{name}_mask.png")
+    overlay_img.save(overlay_path)
+    mask_img.save(mask_path)
+
+    return {
+        "disease": disease,
+        "segmentation_score": round(score, 4),
+        "overlay_url": f"/segmentations/{name}_overlay.png",
+        "mask_url": f"/segmentations/{name}_mask.png",
+        "message": "MedSAM segmentation generated successfully.",
+    }
