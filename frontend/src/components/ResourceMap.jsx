@@ -27,13 +27,26 @@ const TYPE_LABEL = {
 
 const SIZE = 320;
 
-export default function ResourceMap({ resources, origin, flashId }) {
-  if (!origin || resources.length === 0) {
+export default function ResourceMap({ resources = [], origin, flashId }) {
+  if (!origin || !Array.isArray(resources) || resources.length === 0) {
+    return null;
+  }
+
+  const validResources = resources.filter(
+    (r) =>
+      r &&
+      typeof r.latitude === 'number' &&
+      typeof r.longitude === 'number' &&
+      !isNaN(r.latitude) &&
+      !isNaN(r.longitude),
+  );
+
+  if (validResources.length === 0) {
     return null;
   }
 
   const cosLat = Math.cos((origin.lat * Math.PI) / 180) || 1;
-  const points = resources.map((resource) => ({
+  const points = validResources.map((resource) => ({
     resource,
     dx: (resource.longitude - origin.lng) * cosLat,
     dy: resource.latitude - origin.lat,
@@ -45,7 +58,10 @@ export default function ResourceMap({ resources, origin, flashId }) {
   const project = (value) => (value / extent) * (SIZE / 2 - 18) + SIZE / 2;
 
   const rings = [0.33, 0.66, 1];
-  const maxKm = Math.max(...resources.map((r) => r.distanceKm ?? 0));
+  const maxKm = Math.max(
+    ...validResources.map((r) => (typeof r.distanceKm === 'number' && !isNaN(r.distanceKm) ? r.distanceKm : 1)),
+    1,
+  );
 
   return (
     <div className="card">

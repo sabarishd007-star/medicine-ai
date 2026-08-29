@@ -11,7 +11,9 @@ export default function History() {
     setLoading(true);
     scanApi
       .history()
-      .then(setRows)
+      .then((data) => {
+        setRows(Array.isArray(data) ? data : []);
+      })
       .catch((err) => setError(errorMessage(err, 'Could not load scan history.')))
       .finally(() => setLoading(false));
   };
@@ -30,6 +32,8 @@ export default function History() {
     }
   };
 
+  const safeRows = Array.isArray(rows) ? rows : [];
+
   return (
     <div className="container">
       <div className="row spread">
@@ -44,7 +48,7 @@ export default function History() {
 
       {loading ? (
         <p className="muted">Loading&hellip;</p>
-      ) : rows.length === 0 ? (
+      ) : safeRows.length === 0 ? (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
             No scans yet. <Link to="/dashboard">Pick a module</Link> to run your first screening.
@@ -64,18 +68,18 @@ export default function History() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {safeRows.map((row) => (
                 <tr key={row.id}>
                   <td className="tiny muted">
-                    {new Date(row.createdAt).toLocaleString()}
+                    {row.createdAt ? new Date(row.createdAt).toLocaleString() : 'N/A'}
                   </td>
-                  <td className="small">{row.diseaseDisplay || row.disease}</td>
+                  <td className="small">{row.diseaseDisplay || row.disease || 'Module'}</td>
                   <td className="small">
-                    {row.patientName}
-                    <span className="muted"> ({row.patientAge})</span>
+                    {row.patientName || 'Unknown'}
+                    {row.patientAge ? <span className="muted"> ({row.patientAge})</span> : ''}
                   </td>
                   <td className="small">
-                    {row.prediction}
+                    {row.prediction || 'N/A'}
                     <div>
                       {row.modelStatus === 'UNTRAINED_BACKBONE' ? (
                         <span className="badge badge-warn">Not valid</span>
@@ -86,7 +90,9 @@ export default function History() {
                       )}
                     </div>
                   </td>
-                  <td className="small">{row.confidence?.toFixed(1)}%</td>
+                  <td className="small">
+                    {typeof row.confidence === 'number' ? `${row.confidence.toFixed(1)}%` : 'N/A'}
+                  </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <Link to={`/result/${row.id}`} className="small">
                       View

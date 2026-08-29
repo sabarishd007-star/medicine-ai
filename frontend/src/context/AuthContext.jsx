@@ -14,6 +14,26 @@ import { authApi, tokenStore } from '../api/client';
 
 const AuthContext = createContext(null);
 
+const normalizeProfile = (res, fallbackUser = null) => {
+  if (!res) {
+    if (fallbackUser) {
+      return {
+        id: fallbackUser.uid,
+        email: fallbackUser.email,
+        fullName: fallbackUser.displayName || fallbackUser.email?.split('@')[0] || 'User',
+        role: 'USER',
+        scanCount: 0,
+      };
+    }
+    return null;
+  }
+  // When login/register returns { token, expiresInMinutes, user: profile }
+  if (res.user && typeof res.user === 'object') {
+    return res.user;
+  }
+  return res;
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,9 +61,13 @@ export function AuthProvider({ children }) {
         try {
           profile = await authApi.me();
         } catch {
-          profile = await authApi.login({ idToken: token });
+          try {
+            profile = await authApi.login({ idToken: token });
+          } catch {
+            profile = null;
+          }
         }
-        setUser(profile);
+        setUser(normalizeProfile(profile, firebaseUser));
       } catch {
         tokenStore.clear();
         setUser(null);
@@ -61,9 +85,19 @@ export function AuthProvider({ children }) {
     const credential = await signInWithEmailAndPassword(auth, email, password);
     const token = await credential.user.getIdToken();
     tokenStore.set(token);
-    const profile = await authApi.me();
-    setUser(profile);
-    return profile;
+    let profile;
+    try {
+      profile = await authApi.me();
+    } catch {
+      try {
+        profile = await authApi.login({ idToken: token });
+      } catch {
+        profile = null;
+      }
+    }
+    const normalized = normalizeProfile(profile, credential.user);
+    setUser(normalized);
+    return normalized;
   }, []);
 
   const register = useCallback(async ({ email, password, fullName }) => {
@@ -73,9 +107,15 @@ export function AuthProvider({ children }) {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     const token = await credential.user.getIdToken();
     tokenStore.set(token);
-    const profile = await authApi.register({ idToken: token, fullName });
-    setUser(profile);
-    return profile;
+    let profile;
+    try {
+      profile = await authApi.register({ idToken: token, fullName });
+    } catch {
+      profile = null;
+    }
+    const normalized = normalizeProfile(profile, { ...credential.user, displayName: fullName });
+    setUser(normalized);
+    return normalized;
   }, []);
 
   const loginWithGoogle = useCallback(async () => {
@@ -97,10 +137,15 @@ export function AuthProvider({ children }) {
     }
     const token = await credential.user.getIdToken();
     tokenStore.set(token);
-    // The backend login endpoint auto-creates the local account when missing.
-    const profile = await authApi.login({ idToken: token });
-    setUser(profile);
-    return profile;
+    let profile;
+    try {
+      profile = await authApi.login({ idToken: token });
+    } catch {
+      profile = null;
+    }
+    const normalized = normalizeProfile(profile, credential.user);
+    setUser(normalized);
+    return normalized;
   }, []);
 
   const logout = useCallback(async () => {
@@ -120,7 +165,8 @@ export function AuthProvider({ children }) {
 
   const refresh = useCallback(async () => {
     try {
-      setUser(await authApi.me());
+      const profile = await authApi.me();
+      setUser(normalizeProfile(profile));
     } catch {
       /* stale session; the interceptor handles redirect */
     }

@@ -129,7 +129,7 @@ public class AssistantService {
             """;
 
     private static final Pattern ANALYSIS_BLOCK =
-            Pattern.compile("```json\\s*(\\{.*?\\})\\s*```", Pattern.DOTALL);
+            Pattern.compile("```(?:json|analysis)?\\s*(\\{.*?\\})\\s*(?:```|$)", Pattern.DOTALL);
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -158,7 +158,12 @@ public class AssistantService {
         this.provider = provider == null ? "openai" : provider.trim().toLowerCase();
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.model = model;
-        this.openAiUrl = openAiUrl;
+        if (openAiUrl != null && !openAiUrl.isBlank()) {
+            String trimmed = openAiUrl.trim().replaceAll("/+$", "");
+            this.openAiUrl = trimmed.endsWith("/chat/completions") ? trimmed : trimmed + "/chat/completions";
+        } else {
+            this.openAiUrl = "https://api.openai.com/v1/chat/completions";
+        }
         this.anthropicUrl = anthropicUrl;
         this.maxTokens = maxTokens;
         this.maxHistory = maxHistory;
@@ -226,7 +231,7 @@ public class AssistantService {
             try {
                 analysis = extractAnalysis(prose);
                 if (analysis != null) {
-                    prose = prose.replaceFirst("```json\\s*\\{.*?\\}\\s*```", "").trim();
+                    prose = prose.replaceAll("```(?:json|analysis)?[\\s\\S]*?(?:```|$)", "").trim();
                 }
             } catch (Exception ex) {
                 log.debug("Could not parse analysis block: {}", ex.getMessage());

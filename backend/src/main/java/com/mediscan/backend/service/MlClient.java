@@ -1,6 +1,8 @@
 package com.mediscan.backend.service;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -26,6 +28,9 @@ public class MlClient {
 
     private static final Logger log = LoggerFactory.getLogger(MlClient.class);
 
+    /** Served when the ML service is offline so the Dashboard is never blank. */
+    private static final List<Map<String, Object>> FALLBACK_DISEASES = buildFallback();
+
     private final RestTemplate restTemplate;
     private final String baseUrl;
 
@@ -47,12 +52,62 @@ public class MlClient {
     @SuppressWarnings("unchecked")
     public Map<String, Object> listDiseases() {
         try {
-            return restTemplate.getForObject(baseUrl + "/diseases", Map.class);
+            Map<String, Object> result = restTemplate.getForObject(baseUrl + "/diseases", Map.class);
+            if (result != null) {
+                return result;
+            }
         } catch (ResourceAccessException ex) {
-            throw new MlServiceException(
-                    "ML inference service is unreachable at " + baseUrl
-                            + ". Start it with: uvicorn app:app --port 8001");
+            log.warn("ML inference service unreachable at {}. Returning static disease catalogue. Start with: uvicorn app:app --port 8001", baseUrl);
         }
+        Map<String, Object> fallback = new LinkedHashMap<>();
+        fallback.put("diseases", FALLBACK_DISEASES);
+        fallback.put("source", "static_fallback");
+        return fallback;
+    }
+
+    private static List<Map<String, Object>> buildFallback() {
+        return Arrays.asList(
+            disease("brain_tumor", "Brain Tumor", "MRI",
+                Arrays.asList("Glioma", "Meningioma", "No Tumor", "Pituitary"),
+                "pytorch", "resnet18", "TRAINED",
+                "Local PyTorch ResNet-18 model for brain tumor classification."),
+            disease("knee_osteoarthritis", "Knee Osteoarthritis", "Knee X-ray",
+                Arrays.asList("Normal", "Non Severe OA", "Severe OA"),
+                "pytorch", "knee_resnet18_1ch", "TRAINED",
+                "Model Version3.pth: 3-way severity estimation on knee X-rays."),
+            disease("skin_cancer", "Skin Cancer", "Dermoscopy",
+                Arrays.asList("Basal Cell Carcinoma (Cancer)", "Melanoma (Cancer)", "Nevus (Non-Cancerous)"),
+                "keras", "mobilenetv2", "TRAINED",
+                "MobileNetV2 checkpoint trained on dermoscopy skin lesion images."),
+            disease("diabetic_retinopathy", "Diabetic Retinopathy", "Retinal Fundus",
+                Arrays.asList("No DR", "Mild Non-Proliferative DR", "Moderate Non-Proliferative DR",
+                        "Severe Non-Proliferative DR", "Proliferative DR"),
+                "keras", "densenet121", "TRAINED",
+                "DenseNet121 ordinal classifier for diabetic retinopathy grading."),
+            disease("pneumonia", "Pneumonia", "Chest X-ray",
+                Arrays.asList("Normal", "Pneumonia"),
+                "keras", "densenet121", "TRAINED",
+                "DenseNet-121 CheXNet architecture for radiologist-level pneumonia screening.")
+        );
+    }
+
+    private static Map<String, Object> disease(
+            String key, String displayName, String modality,
+            List<String> classes, String framework, String architecture,
+            String modelStatus, String provenance) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("key", key);
+        m.put("display_name", displayName);
+        m.put("modality", modality);
+        m.put("classes", classes);
+        m.put("framework", framework);
+        m.put("architecture", architecture);
+        m.put("model_status", modelStatus);
+        m.put("confidence_threshold", 0.75);
+        m.put("provides_stage", false);
+        m.put("provenance", provenance);
+        m.put("metrics", null);
+        return m;
     }
 
     @SuppressWarnings("unchecked")

@@ -57,6 +57,7 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/api/diseases",
                                 "/api/health",
+                                "/api/assistant/**",
                                 // Emergency lookups stay public: someone needing an
                                 // ambulance must not hit a login wall first.
                                 "/api/medibridge/**",

@@ -36,6 +36,7 @@ const GREETING = {
 
 /** Renders **bold** and preserves line breaks without pulling in a markdown lib. */
 function renderText(text) {
+  if (!text || typeof text !== 'string') return null;
   return text.split('\n').map((line, lineIndex) => {
     const parts = line.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
     return (
@@ -55,6 +56,7 @@ function renderText(text) {
 
 function AnalysisCard({ analysis }) {
   if (!analysis) return null;
+  const conditions = Array.isArray(analysis.conditions) ? analysis.conditions : [];
   return (
     <div
       style={{
@@ -81,33 +83,35 @@ function AnalysisCard({ analysis }) {
         </p>
       )}
 
-      <div className="grid" style={{ gap: 8 }}>
-        {analysis.conditions.map((condition, index) => (
-          <div
-            key={index}
-            style={{
-              background: '#fff',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              padding: '8px 10px',
-            }}
-          >
-            <div className="row spread" style={{ marginBottom: 4 }}>
-              <span className="small" style={{ fontWeight: 700 }}>
-                {condition.name}
-              </span>
-              <span className={`badge ${LIKELIHOOD_STYLE[condition.likelihood] ?? 'badge-muted'}`}>
-                {condition.likelihood}
-              </span>
+      {conditions.length > 0 && (
+        <div className="grid" style={{ gap: 8 }}>
+          {conditions.map((condition, index) => (
+            <div
+              key={index}
+              style={{
+                background: '#fff',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: '8px 10px',
+              }}
+            >
+              <div className="row spread" style={{ marginBottom: 4 }}>
+                <span className="small" style={{ fontWeight: 700 }}>
+                  {condition.name}
+                </span>
+                <span className={`badge ${LIKELIHOOD_STYLE[condition.likelihood] ?? 'badge-muted'}`}>
+                  {condition.likelihood}
+                </span>
+              </div>
+              {condition.briefExplanation && (
+                <p className="tiny muted" style={{ margin: 0 }}>
+                  {condition.briefExplanation}
+                </p>
+              )}
             </div>
-            {condition.briefExplanation && (
-              <p className="tiny muted" style={{ margin: 0 }}>
-                {condition.briefExplanation}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {analysis.recommendedAction && (
         <p className="small" style={{ marginBottom: 0, marginTop: 10 }}>

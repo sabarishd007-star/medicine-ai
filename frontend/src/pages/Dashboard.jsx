@@ -61,13 +61,25 @@ export default function Dashboard() {
   const [diseases, setDiseases] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [usingFallback, setUsingFallback] = useState(false);
 
-  useEffect(() => {
+  const loadDiseases = () => {
+    setLoading(true);
+    setError('');
     scanApi
       .diseases()
-      .then(setDiseases)
-      .catch((err) => setError(errorMessage(err, 'Could not load the disease catalogue.')))
+      .then((list) => {
+        setDiseases(Array.isArray(list) ? list : []);
+        setUsingFallback(false);
+      })
+      .catch(() => {
+        setUsingFallback(true);
+      })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadDiseases();
   }, []);
 
   return (
@@ -79,9 +91,27 @@ export default function Dashboard() {
         </Link>
       </div>
       <p className="muted">
-        {user?.fullName} &middot; {user?.scanCount ?? 0} scan
-        {user?.scanCount === 1 ? '' : 's'} run
+        {user?.fullName && <>{user.fullName} &middot; </>}
+        {user?.scanCount ?? 0} scan{user?.scanCount === 1 ? '' : 's'} run
       </p>
+
+      {usingFallback && (
+        <div className="alert alert-warn">
+          <strong>ML service offline.</strong> Showing catalogue from local registry.
+          Scanning requires the inference service:{' '}
+          <code>uvicorn app:app --port 8001</code>
+          <div style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn-ghost"
+              style={{ padding: '4px 12px', fontSize: 13 }}
+              onClick={loadDiseases}
+            >
+              Retry connection
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="alert alert-danger">
@@ -95,6 +125,20 @@ export default function Dashboard() {
       <h2 style={{ marginTop: 28 }}>Screening modules</h2>
       {loading ? (
         <p className="muted">Loading modules&hellip;</p>
+      ) : diseases.length === 0 ? (
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            No screening modules found.{' '}
+            <button
+              type="button"
+              className="btn-ghost"
+              style={{ padding: '4px 10px', fontSize: 13 }}
+              onClick={loadDiseases}
+            >
+              Retry
+            </button>
+          </p>
+        </div>
       ) : (
         <div className="grid grid-3">
           {diseases.map((disease) => (
@@ -104,7 +148,7 @@ export default function Dashboard() {
                 <ModelBadge status={disease.model_status} />
               </div>
               <p className="tiny muted" style={{ marginBottom: 6 }}>
-                {disease.modality} &middot; {disease.classes.length} classes
+                {disease.modality} &middot; {(disease.classes || []).length} classes
               </p>
               <MetricsLine metrics={disease.metrics} />
               <div style={{ marginTop: 14 }}>
