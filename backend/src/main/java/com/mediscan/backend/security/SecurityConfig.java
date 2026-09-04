@@ -53,6 +53,8 @@ public class SecurityConfig {
                         // Admin writes change what every user sees, so they need a login.
                         // Declared before the public MediBridge rule so it wins.
                         .requestMatchers("/api/medibridge/admin/**").authenticated()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/diseases",

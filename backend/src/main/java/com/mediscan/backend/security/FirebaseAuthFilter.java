@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -35,10 +37,12 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ") && firebase.isConfigured()) {
             String idToken = header.substring(7).trim();
             try {
-                String email = firebase.verify(idToken).getEmail();
+                var token = firebase.verify(idToken);
+                String email = token.getEmail();
                 if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    String role = extractRole(token.getClaims());
                     var authentication = new UsernamePasswordAuthenticationToken(
-                            email, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+                            email, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
                     authentication.setDetails(
                             new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -48,5 +52,17 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
             }
         }
         chain.doFilter(request, response);
+    }
+
+    /** Maps the Firebase custom claim `role` to a Spring Security authority. */
+    private String extractRole(Map<String, Object> claims) {
+        Object claim = claims.get("role");
+        if (claim instanceof String role) {
+            String normalized = role.trim().toUpperCase(Locale.ROOT);
+            if (List.of("USER", "DOCTOR", "ADMIN").contains(normalized)) {
+                return normalized;
+            }
+        }
+        return "USER";
     }
 }

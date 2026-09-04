@@ -42,6 +42,13 @@ from segmentation import (
     is_medsam_available,
 )
 
+# ONNX Runtime (optional)
+try:
+    import onnxruntime as ort
+    ORT_AVAILABLE = True
+except ImportError:
+    ORT_AVAILABLE = False
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("mediscan.ml")
 
@@ -430,4 +437,118 @@ async def generate_segmentation(
         "overlay_url": f"/segmentations/{name}_overlay.png",
         "mask_url": f"/segmentations/{name}_mask.png",
         "message": "MedSAM segmentation generated successfully.",
+    }
+
+
+# ONNX Runtime inference endpoint
+ORT_SESSION = None
+ORT_INPUT_NAME = None
+
+
+def _load_onnx_session(model_path: str = "./models/densenet_model.onnx") -> bool:
+    global ORT_SESSION, ORT_INPUT_NAME
+    if not ORT_AVAILABLE:
+        return False
+    if not os.path.exists(model_path):
+        return False
+    try:
+        ORT_SESSION = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
+        ORT_INPUT_NAME = ORT_SESSION.get_inputs()[0].name
+        return True
+    except Exception as e:
+        print(f"ONNX load failed: {e}")
+        return False
+
+
+@app.get("/onnx/status")
+def onnx_status() -> dict:
+    return {
+        "ort_available": ORT_AVAILABLE,
+        "model_loaded": ORT_SESSION is not None,
+        "model_path": "./models/densenet_model.onnx",
+    }
+
+
+@app.post("/onnx/load")
+def onnx_load(model_path: str = "./models/densenet_model.onnx") -> dict:
+    ok = _load_onnx_session(model_path)
+    return {"loaded": ok}
+
+
+def _onnx_preprocess(pil_image: Image.Image) -> np.ndarray:
+    """Preprocess PIL image to ONNX input tensor (1, 3, 224, 224) float32."""
+    resized = pil_image.resize((224, 224), Image.BILINEAR)
+    arr = np.asarray(resized, dtype=np.float32) / 255.0
+    # ImageNet normalization
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+    arr = (arr - mean) / std
+    arr = np.transpose(arr, (2, 0, 1))  # HWC -> CHW
+    arr = np.expand_dims(arr, axis=0).astype(np.float32)  # (1, 3, 224, 224)
+    return np.ascontiguousarray(arr)
+
+
+@app.post("/onnx/predict")
+async def onnx_predict(
+    disease: str = Form(...),
+    patientName: str = Form(...),
+    patientAge: int = Form(...),
+    patientNotes: Optional[str] = Form(None),
+    file: UploadFile = File(...),
+):
+    """Run inference using ONNX Runtime (microsecond-level latency)."""
+    if not ORT_AVAILABLE:
+        raise HTTPException(status_code=503, detail="onnxruntime not installed")
+    if ORT_SESSION is None:
+        # Try auto-load
+        if not _load_onnx_session():
+            raise HTTPException(
+                status_code=503,
+                detail="ONNX model not loaded. POST /onnx/load or place densenet_model.onnx at ./models/densenet_model.onnx",
+            )
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=422, detail="Uploaded file is empty.")
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit.",
+        )
+
+    pil_image = _decode_image(raw)
+    input_tensor = _onnx_preprocess(pil_image)
+
+    # Run inference
+    outputs = ORT_SESSION.run(None, {ORT_INPUT_NAME: input_tensor})
+    logits = outputs[0][0]  # (num_classes,)
+    # Softmax
+    exp_logits = np.exp(logits - np.max(logits))
+    probs = exp_logits / exp_logits.sum()
+    top_index = int(np.argmax(probs))
+    confidence = float(probs[top_index])
+
+    # Build result similar to analyze_image
+    spec = REGISTRY.get(disease)
+    if spec is None:
+        raise HTTPException(status_code=400, detail=f"Unknown disease '{disease}'")
+
+    top_label = spec.classes[top_index] if top_index < len(spec.classes) else spec.classes[0]
+    is_conclusive = confidence >= spec.confidence_threshold
+    prediction = top_label if is_conclusive else "Inconclusive - Consult Specialist"
+
+    return {
+        "disease": disease,
+        "disease_display": spec.display_name,
+        "modality": spec.modality,
+        "prediction": prediction,
+        "top_class": top_label,
+        "confidence": round(confidence * 100, 2),
+        "confidence_threshold": round(spec.confidence_threshold * 100, 2),
+        "is_conclusive": is_conclusive,
+        "class_probabilities": {label: round(float(probs[i]) * 100, 2) for i, label in enumerate(spec.classes)},
+        "score_semantics": "softmax_onnx",
+        "model_status": "ONNX_OPTIMIZED",
+        "runtime": "onnxruntime",
+        "analyzed_at": datetime.now(timezone.utc).isoformat(),
     }
