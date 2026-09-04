@@ -24,6 +24,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, UnidentifiedImageError
+from pydantic import BaseModel, Field
 
 import heart_risk
 from backends import decode_ordinal
@@ -41,6 +42,7 @@ from segmentation import (
     generate_segmentation_mask,
     is_medsam_available,
 )
+from fhir import build_fhir_report
 
 # ONNX Runtime (optional)
 try:
@@ -63,6 +65,12 @@ os.makedirs(HEATMAP_DIR, exist_ok=True)
 os.makedirs(REPORT_DIR, exist_ok=True)
 
 app = FastAPI(title="MediScan AI - ML Service", version=SERVICE_VERSION)
+
+
+class FhirDiagnosticReportRequest(BaseModel):
+    patient_id: str = Field(min_length=1, max_length=128)
+    diagnosis: str = Field(min_length=1, max_length=500)
+    confidence: float = Field(ge=0, le=100)
 
 app.add_middleware(
     CORSMiddleware,
@@ -226,6 +234,14 @@ def health() -> dict:
 @app.get("/diseases")
 def diseases() -> dict:
     return {"diseases": list_diseases()}
+
+
+@app.post("/fhir/diagnostic-report")
+def fhir_diagnostic_report(payload: FhirDiagnosticReportRequest) -> dict:
+    """Build a FHIR R4 DiagnosticReport for forwarding through an EHR gateway."""
+    return json.loads(
+        build_fhir_report(payload.patient_id, payload.diagnosis, payload.confidence)
+    )
 
 
 @app.post("/predict")

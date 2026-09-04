@@ -20,12 +20,15 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final FirebaseAuthFilter firebaseAuthFilter;
+    private final AuditLogFilter auditLogFilter;
     private final String allowedOrigins;
 
     public SecurityConfig(
             FirebaseAuthFilter firebaseAuthFilter,
+            AuditLogFilter auditLogFilter,
             @Value("${mediscan.cors.allowed-origins}") String allowedOrigins) {
         this.firebaseAuthFilter = firebaseAuthFilter;
+        this.auditLogFilter = auditLogFilter;
         this.allowedOrigins = allowedOrigins;
     }
 
@@ -68,7 +71,8 @@ public class SecurityConfig {
                         .permitAll()
                         .anyRequest().authenticated())
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
-                .addFilterBefore(firebaseAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(firebaseAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(auditLogFilter, FirebaseAuthFilter.class);
 
         return http.build();
     }
