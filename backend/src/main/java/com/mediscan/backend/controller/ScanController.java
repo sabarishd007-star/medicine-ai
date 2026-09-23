@@ -115,7 +115,7 @@ public class ScanController {
         return ResponseEntity.ok(ml.generateFhirReport(
                 String.valueOf(scan.getId()),
                 scan.getPrediction() != null ? scan.getPrediction() : "Scan evaluated",
-                scan.getConfidence() != null ? scan.getConfidence() : 0.0
+                scan.confidence() != null ? scan.confidence() : 0.0
         ));
     }
 }
