@@ -31,7 +31,7 @@ public class AuditLogFilter extends OncePerRequestFilter {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication != null && authentication.isAuthenticated() && request.getRequestURI().startsWith("/api/")) {
                 try {
-                    auditLogs.save(new AuditLog(authentication.getName(), patientId(request), request.getMethod(),
+                    auditLogs.save(new AuditLog(authentication.getName(), patientId(request), justification(request), request.getMethod(),
                             request.getRequestURI(), clientIp(request), response.getStatus()));
                 } catch (RuntimeException ex) {
                     log.error("Could not persist audit event", ex);
@@ -41,8 +41,15 @@ public class AuditLogFilter extends OncePerRequestFilter {
     }
 
     private String patientId(HttpServletRequest request) {
+        String queryPatientId = request.getParameter("patientId");
+        if (queryPatientId != null && !queryPatientId.isBlank()) return queryPatientId;
         String[] path = request.getRequestURI().split("/");
         return path.length > 3 && "scans".equals(path[2]) ? path[3] : null;
+    }
+
+    private String justification(HttpServletRequest request) {
+        String value = request.getParameter("justification");
+        return value == null || value.isBlank() ? null : value.substring(0, Math.min(value.length(), 1000));
     }
 
     private String clientIp(HttpServletRequest request) {

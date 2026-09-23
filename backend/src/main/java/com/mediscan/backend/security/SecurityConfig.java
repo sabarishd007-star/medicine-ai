@@ -57,11 +57,12 @@ public class SecurityConfig {
                         // Declared before the public MediBridge rule so it wins.
                         .requestMatchers("/api/medibridge/admin/**").authenticated()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
+                        .requestMatchers("/api/doctor/**").hasAnyRole("DOCTOR", "RADIOLOGIST")
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/diseases",
                                 "/api/health",
+                                "/api/heart-risk/**",
                                 "/api/assistant/**",
                                 // Emergency lookups stay public: someone needing an
                                 // ambulance must not hit a login wall first.

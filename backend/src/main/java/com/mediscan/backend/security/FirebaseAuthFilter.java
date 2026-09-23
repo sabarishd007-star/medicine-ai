@@ -59,7 +59,7 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
         Object claim = claims.get("role");
         if (claim instanceof String role) {
             String normalized = role.trim().toUpperCase(Locale.ROOT);
-            if (List.of("USER", "DOCTOR", "ADMIN").contains(normalized)) {
+            if (List.of("USER", "DOCTOR", "RADIOLOGIST", "ADMIN").contains(normalized)) {
                 return normalized;
             }
         }

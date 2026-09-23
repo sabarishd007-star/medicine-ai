@@ -6,6 +6,9 @@ numpy==2.5.1
 onnx==1.19.1
 onnxruntime==1.24.4
 fhir.resources==8.2.0
+pydicom==3.0.2
+dicomweb-client==0.60.1
+requests-toolbelt==1.0.0
 opencv-python==5.0.0.93
 reportlab==5.0.0
 

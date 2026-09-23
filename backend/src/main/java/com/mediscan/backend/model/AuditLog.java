@@ -15,6 +15,7 @@ public class AuditLog {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @Column(nullable = false, length = 160) private String userId;
     @Column(length = 64) private String patientId;
+    @Column(length = 1000) private String justification;
     @Column(nullable = false, length = 16) private String method;
     @Column(nullable = false, length = 512) private String requestPath;
     @Column(nullable = false, length = 64) private String clientIp;
@@ -23,9 +24,10 @@ public class AuditLog {
 
     protected AuditLog() { }
 
-    public AuditLog(String userId, String patientId, String method, String requestPath, String clientIp, int responseStatus) {
+    public AuditLog(String userId, String patientId, String justification, String method, String requestPath, String clientIp, int responseStatus) {
         this.userId = userId;
         this.patientId = patientId;
+        this.justification = justification;
         this.method = method;
         this.requestPath = requestPath;
         this.clientIp = clientIp;

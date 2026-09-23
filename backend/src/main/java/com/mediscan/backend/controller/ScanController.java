@@ -97,4 +97,25 @@ public class ScanController {
         byte[] image = scanService.artifact(user, id, "heatmap");
         return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(image);
     }
+
+    @PostMapping("/heart-risk")
+    public ResponseEntity<Map<String, Object>> evaluateHeartRisk(@org.springframework.web.bind.annotation.RequestBody Map<String, Object> payload) {
+        return ResponseEntity.ok(ml.evaluateHeartRisk(payload));
+    }
+
+    @GetMapping("/heart-risk/schema")
+    public ResponseEntity<Map<String, Object>> heartRiskSchema() {
+        return ResponseEntity.ok(ml.heartRiskSchema());
+    }
+
+    @GetMapping("/scans/{id}/fhir")
+    public ResponseEntity<Map<String, Object>> scanFhirReport(Principal principal, @PathVariable Long id) {
+        var user = auth.requireUser(principal == null ? null : principal.getName());
+        var scan = scanService.get(user, id);
+        return ResponseEntity.ok(ml.generateFhirReport(
+                String.valueOf(scan.getId()),
+                scan.getPrediction() != null ? scan.getPrediction() : "Scan evaluated",
+                scan.getConfidence() != null ? scan.getConfidence() : 0.0
+        ));
+    }
 }

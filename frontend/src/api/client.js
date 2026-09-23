@@ -243,10 +243,18 @@ export const assistantApi = {
     api.post('/assistant/chat', { message, history }).then((r) => r.data),
 };
 
+export const heartRiskApi = {
+  schema: () => api.get('/heart-risk/schema').then((r) => r.data),
+  predict: (payload) => api.post('/heart-risk', payload).then((r) => r.data),
+};
+
+export const fhirApi = {
+  getReport: (id) => api.get(`/scans/${id}/fhir`).then((r) => r.data),
+};
+
 /** Base origin (without /api) - needed for the SockJS handshake URL. */
 export const SERVER_ORIGIN = BASE_URL.startsWith('http')
   ? BASE_URL.replace(/\/api\/?$/, '')
   : window.location.origin;
-
 
 export default api;

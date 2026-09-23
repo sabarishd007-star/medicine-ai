@@ -14,13 +14,14 @@ import io
 import json
 import logging
 import os
+import hmac
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
 import cv2
 import numpy as np
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, UnidentifiedImageError
@@ -42,7 +43,8 @@ from segmentation import (
     generate_segmentation_mask,
     is_medsam_available,
 )
-from fhir import build_fhir_report
+from fhir_service import build_fhir_report
+from dicomweb_service import DICOMwebError, DICOMwebPACSClient
 
 # ONNX Runtime (optional)
 try:
@@ -65,6 +67,16 @@ os.makedirs(HEATMAP_DIR, exist_ok=True)
 os.makedirs(REPORT_DIR, exist_ok=True)
 
 app = FastAPI(title="MediScan AI - ML Service", version=SERVICE_VERSION)
+pacs_client = DICOMwebPACSClient()
+
+
+def _require_gateway(x_mediscan_gateway_key: Optional[str] = Header(default=None)) -> None:
+    """Reject PACS access unless it came from the Spring gateway over the private network."""
+    expected = os.getenv("MEDISCAN_GATEWAY_SHARED_SECRET")
+    if not expected:
+        raise HTTPException(status_code=503, detail="PACS gateway authorization is not configured.")
+    if not x_mediscan_gateway_key or not hmac.compare_digest(x_mediscan_gateway_key, expected):
+        raise HTTPException(status_code=403, detail="PACS access is restricted to the gateway.")
 
 
 class FhirDiagnosticReportRequest(BaseModel):
@@ -234,6 +246,46 @@ def health() -> dict:
 @app.get("/diseases")
 def diseases() -> dict:
     return {"diseases": list_diseases()}
+
+
+@app.get("/api/pacs/search", dependencies=[Depends(_require_gateway)])
+def pacs_search(patient_id: str = Query(..., min_length=1, max_length=128), limit: int = Query(25, ge=1, le=100)) -> dict:
+    try:
+        metadata = pacs_client.search_studies(patient_id, limit)
+    except DICOMwebError as exc:
+        logger.warning("PACS QIDO-RS query failed: %s", exc)
+        raise HTTPException(status_code=502, detail="PACS study query failed.") from exc
+    return {"patient_id": patient_id, "studies_found": len(metadata), "metadata": metadata}
+
+
+def _dicom_to_pil(dataset) -> Image.Image:
+    try:
+        pixels = np.asarray(dataset.pixel_array, dtype=np.float32)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail="DICOM instance has unreadable pixel data.") from exc
+    if pixels.ndim == 3 and pixels.shape[-1] not in (3, 4):
+        pixels = pixels[0]
+    low, high = np.percentile(pixels, (1, 99))
+    if high <= low:
+        low, high = float(pixels.min()), float(pixels.max())
+    scaled = np.zeros_like(pixels, dtype=np.uint8) if high <= low else np.clip((pixels - low) * 255.0 / (high - low), 0, 255).astype(np.uint8)
+    if getattr(dataset, "PhotometricInterpretation", "") == "MONOCHROME1":
+        scaled = 255 - scaled
+    return Image.fromarray(scaled).convert("RGB")
+
+
+@app.post("/api/pacs/analyze-instance", dependencies=[Depends(_require_gateway)])
+def analyze_pacs_instance(study_uid: str = Query(...), series_uid: str = Query(...), sop_uid: str = Query(...), disease: str = Query(...)) -> dict:
+    if disease not in REGISTRY:
+        raise HTTPException(status_code=400, detail=f"Unknown disease '{disease}'.")
+    try:
+        dataset = pacs_client.retrieve_instance(study_uid, series_uid, sop_uid)
+    except DICOMwebError as exc:
+        logger.warning("PACS WADO-RS retrieval failed: %s", exc)
+        raise HTTPException(status_code=502, detail="PACS instance retrieval failed.") from exc
+    result = analyze_image(disease, _dicom_to_pil(dataset), sop_uid)
+    result.pop("heatmap_path", None)
+    return {"study_instance_uid": study_uid, "series_instance_uid": series_uid, "sop_instance_uid": sop_uid, "result": result}
 
 
 @app.post("/fhir/diagnostic-report")

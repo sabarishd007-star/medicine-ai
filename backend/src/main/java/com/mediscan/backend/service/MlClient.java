@@ -20,6 +20,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.multipart.MultipartFile;
 
 /** Talks to the Python FastAPI inference service. */
@@ -33,12 +34,15 @@ public class MlClient {
 
     private final RestTemplate restTemplate;
     private final String baseUrl;
+    private final String gatewayToken;
 
     public MlClient(
             RestTemplateBuilder builder,
             @Value("${mediscan.ml.base-url}") String baseUrl,
+            @Value("${mediscan.ml.gateway-token}") String gatewayToken,
             @Value("${mediscan.ml.timeout-seconds}") long timeoutSeconds) {
         this.baseUrl = baseUrl.replaceAll("/+$", "");
+        this.gatewayToken = gatewayToken;
         this.restTemplate = builder
                 .setConnectTimeout(Duration.ofSeconds(10))
                 .setReadTimeout(Duration.ofSeconds(timeoutSeconds))
@@ -177,6 +181,83 @@ public class MlClient {
             return response.getBody();
         } catch (RestClientResponseException ex) {
             throw new MlServiceException("Artifact not found: " + path, 404);
+        } catch (ResourceAccessException ex) {
+            throw new MlServiceException("ML inference service is unreachable.");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> pacsSearch(String patientId, int limit) {
+        String url = UriComponentsBuilder.fromHttpUrl(baseUrl + "/api/pacs/search")
+                .queryParam("patient_id", patientId).queryParam("limit", limit).toUriString();
+        return pacsExchange(url, org.springframework.http.HttpMethod.GET);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> pacsAnalyze(String studyUid, String seriesUid, String sopUid, String disease) {
+        String url = UriComponentsBuilder.fromHttpUrl(baseUrl + "/api/pacs/analyze-instance")
+                .queryParam("study_uid", studyUid).queryParam("series_uid", seriesUid)
+                .queryParam("sop_uid", sopUid).queryParam("disease", disease).toUriString();
+        return pacsExchange(url, org.springframework.http.HttpMethod.POST);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> evaluateHeartRisk(Map<String, Object> payload) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(baseUrl + "/heart-risk", request, Map.class);
+            return response.getBody();
+        } catch (RestClientResponseException ex) {
+            throw new MlServiceException("Heart risk evaluation failed: " + shorten(ex.getResponseBodyAsString()), ex.getStatusCode().value());
+        } catch (ResourceAccessException ex) {
+            throw new MlServiceException("ML inference service is unreachable at " + baseUrl);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> heartRiskSchema() {
+        try {
+            return restTemplate.getForObject(baseUrl + "/heart-risk/schema", Map.class);
+        } catch (ResourceAccessException ex) {
+            throw new MlServiceException("ML inference service is unreachable at " + baseUrl);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> generateFhirReport(String patientId, String diagnosis, double confidence) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        Map<String, Object> req = Map.of(
+            "patient_id", patientId,
+            "diagnosis", diagnosis,
+            "confidence", confidence
+        );
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(req, headers);
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(baseUrl + "/fhir/diagnostic-report", entity, Map.class);
+            return response.getBody();
+        } catch (RestClientResponseException ex) {
+            throw new MlServiceException("FHIR generation failed: " + shorten(ex.getResponseBodyAsString()), ex.getStatusCode().value());
+        } catch (ResourceAccessException ex) {
+            throw new MlServiceException("ML inference service is unreachable at " + baseUrl);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> pacsExchange(String url, org.springframework.http.HttpMethod method) {
+        if (gatewayToken == null || gatewayToken.isBlank()) {
+            throw new MlServiceException("PACS gateway token is not configured.", 503);
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-MediScan-Gateway-Key", gatewayToken);
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(url, method,
+                    new HttpEntity<>(headers), Map.class);
+            return response.getBody();
+        } catch (RestClientResponseException ex) {
+            throw new MlServiceException("PACS request failed.", ex.getStatusCode().value());
         } catch (ResourceAccessException ex) {
             throw new MlServiceException("ML inference service is unreachable.");
         }

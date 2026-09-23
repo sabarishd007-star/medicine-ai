@@ -257,27 +257,31 @@ def _build_keras_backend(spec: DiseaseSpec, path: str):
     if not os.path.exists(path):
         return None, STATUS_UNTRAINED, None
 
-    import tf_keras
+    try:
+        import tf_keras
 
-    model = tf_keras.models.load_model(path, compile=False)
+        model = tf_keras.models.load_model(path, compile=False)
 
-    if spec.key == "skin_cancer":
-        preprocess = backends.skin_preprocess
-    elif spec.key == "diabetic_retinopathy":
-        preprocess = backends.dr_preprocess
-    elif spec.key == "pneumonia":
-        preprocess = backends.cxr_preprocess
-    else:
-        preprocess = backends.skin_preprocess
+        if spec.key == "skin_cancer":
+            preprocess = backends.skin_preprocess
+        elif spec.key == "diabetic_retinopathy":
+            preprocess = backends.dr_preprocess
+        elif spec.key == "pneumonia":
+            preprocess = backends.cxr_preprocess
+        else:
+            preprocess = backends.skin_preprocess
 
-    backend = backends.KerasBackend(
-        model=model,
-        preprocess=preprocess,
-        last_conv_layer=spec.last_conv_layer,
-        nested_model=spec.nested_model,
-        ordinal=spec.ordinal_threshold is not None,
-    )
-    return backend, STATUS_TRAINED, _sha256(path)
+        backend = backends.KerasBackend(
+            model=model,
+            preprocess=preprocess,
+            last_conv_layer=spec.last_conv_layer,
+            nested_model=spec.nested_model,
+            ordinal=spec.ordinal_threshold is not None,
+        )
+        return backend, STATUS_TRAINED, _sha256(path)
+    except (MemoryError, Exception) as exc:
+        print(f"Warning: could not load Keras model for {spec.key}: {exc}")
+        return None, STATUS_UNTRAINED, None
 
 
 def get_bundle(disease: str) -> ModelBundle:
