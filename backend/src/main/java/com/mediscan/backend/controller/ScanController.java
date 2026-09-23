@@ -113,8 +113,8 @@ public class ScanController {
         var user = auth.requireUser(principal == null ? null : principal.getName());
         var scan = scanService.get(user, id);
         return ResponseEntity.ok(ml.generateFhirReport(
-                String.valueOf(scan.getId()),
-                scan.getPrediction() != null ? scan.getPrediction() : "Scan evaluated",
+                String.valueOf(scan.id()),
+                scan.prediction() != null ? scan.prediction() : "Scan evaluated",
                 scan.confidence() != null ? scan.confidence() : 0.0
         ));
     }
