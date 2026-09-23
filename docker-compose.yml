@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mediscan_db}
+      POSTGRES_USER: ${POSTGRES_USER:-mediscan_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [backend-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ml-service:
+    build: ./backend/ml-service
+    restart: unless-stopped
+    environment:
+      CUDA_VISIBLE_DEVICES: '-1'
+      MEDISCAN_GATEWAY_SHARED_SECRET: ${MEDISCAN_GATEWAY_SHARED_SECRET:?Set MEDISCAN_GATEWAY_SHARED_SECRET in .env}
+      MEDISCAN_ASSISTANT_API_KEY: ${MEDISCAN_ASSISTANT_API_KEY:-}
+      PACS_DICOMWEB_URL: ${PACS_DICOMWEB_URL:-}
+      PACS_OAUTH_TOKEN: ${PACS_OAUTH_TOKEN:-}
+    networks: [internal-ml-net]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-mediscan_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-mediscan_admin}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      MEDISCAN_ML_BASE_URL: http://ml-service:8000
+      MEDISCAN_ML_GATEWAY_TOKEN: ${MEDISCAN_GATEWAY_SHARED_SECRET:?Set MEDISCAN_GATEWAY_SHARED_SECRET in .env}
+    networks: [frontend-net, backend-net, internal-ml-net]
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on: [backend]
+    ports:
+      - "${MEDISCAN_FRONTEND_PORT:-8088}:80"
+    networks: [frontend-net]
+
+networks:
+  frontend-net: {}
+  backend-net:
+    internal: true
+  # No published port exposes FastAPI; this network permits PACS egress when configured.
+  internal-ml-net: {}
+
+volumes:
+  postgres_data: {}

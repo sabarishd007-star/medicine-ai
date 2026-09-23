@@ -1,4 +1,5 @@
 # Node dependencies
+.env
 node_modules/
 frontend/node_modules/
 backend/frontend/node_modules/
